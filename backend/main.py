@@ -86,15 +86,6 @@ class UserState(BaseModel):
     next_energy_in_seconds: int
     total_cards: int = 200
 
-class MigrationCard(BaseModel):
-    card_id: str
-    duplicates: int
-
-class MigrationData(BaseModel):
-    user_id: int
-    coins: int
-    cards: List[MigrationCard]
-
 def update_energy(db: Session, user: models.User):
     now = datetime.now(timezone.utc).replace(tzinfo=None) # Keep tz naive for sqlite
     # Calculate difference
@@ -342,45 +333,6 @@ async def get_collection(user_id: int, db: Session = Depends(get_db)):
                 "acquired_at": uc.acquired_at
             })
     return result
-
-@app.post("/admin/migrate")
-async def migrate_data(data: MigrationData, admin_secret: str, db: Session = Depends(get_db)):
-    # Simple secret check for one-time migration
-    if admin_secret != os.getenv("ADMIN_SECRET"):
-        raise HTTPException(status_code=403, detail="Дундуче, не той ключ!")
-    
-    # 1. Get or create user
-    user = db.query(models.User).filter(models.User.id == data.user_id).first()
-    if not user:
-        user = models.User(
-            id=data.user_id,
-            username=f"Migrated_{data.user_id}",
-            energy=20, 
-            max_energy=20, 
-            coins=data.coins
-        )
-        db.add(user)
-    else:
-        user.coins = max(user.coins, data.coins)
-    
-    # 2. Add cards
-    for m_card in data.cards:
-        existing = db.query(models.UserCard).filter(
-            models.UserCard.user_id == user.id, 
-            models.UserCard.card_id == m_card.card_id
-        ).first()
-        if not existing:
-            new_card = models.UserCard(
-                user_id=user.id,
-                card_id=m_card.card_id,
-                duplicates=m_card.duplicates
-            )
-            db.add(new_card)
-        else:
-            existing.duplicates = max(existing.duplicates, m_card.duplicates)
-    
-    db.commit()
-    return {"success": True, "message": f"Продуктивно перенесено {len(data.cards)} карток!"}
 
 
 if __name__ == "__main__":
