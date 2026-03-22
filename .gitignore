@@ -1,0 +1,30 @@
+# Root .gitignore for gachaAPP monorepo
+
+# Backend
+backend/__pycache__/
+backend/*.pyc
+backend/venv/
+backend/.env
+backend/gacha_v2.db
+backend/gacha_v2.db-shm
+backend/gacha_v2.db-wal
+backend/gacha.db
+backend/assets/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.env
+frontend/*.local
+
+# OS
+.DS_Store
+Thumbs.db
+*.suo
+*.sln
+
+# Editor
+.idea/
+.vscode/
+*.sw?

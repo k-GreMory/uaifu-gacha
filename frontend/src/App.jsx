@@ -1,0 +1,456 @@
+import { useState, useEffect, useMemo } from 'react'
+import axios from 'axios'
+import './App.css'
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+
+function App() {
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [user, setUser] = useState(null)
+  const [userStats, setUserStats] = useState({ energy: 0, max_energy: 20, coins: 0, next_energy_in_seconds: 0, total_cards: 200 })
+  const [collection, setCollection] = useState([])
+  const [showCollection, setShowCollection] = useState(false)
+  const [showShop, setShowShop] = useState(false)
+  const [isFlipping, setIsFlipping] = useState(false)
+  const [toast, setToast] = useState(null)
+
+  const showToast = (message) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  useEffect(() => {
+    // Initialize Telegram WebApp
+    const tg = window.Telegram?.WebApp;
+    if (tg && tg.initDataUnsafe?.user) {
+      tg.ready();
+      tg.expand();
+      setUser(tg.initDataUnsafe.user);
+    } else {
+      // Fallback for development outside Telegram
+      setUser({ first_name: 'Гість (Dev Mode)', id: 12345678 });
+    }
+  }, [])
+
+  const fetchCollection = async () => {
+    if (!user) return;
+    try {
+      const response = await axios.get(`${BACKEND_URL}/collection?user_id=${user.id}`)
+      setCollection(response.data)
+    } catch (error) {
+      console.error("Error fetching collection:", error)
+    }
+  }
+
+  const fetchUserStats = async () => {
+    if (!user) return;
+    try {
+      const response = await axios.get(`${BACKEND_URL}/user?user_id=${user.id}`)
+      setUserStats(response.data)
+    } catch (error) {
+      console.error("Error fetching user stats:", error)
+    }
+  }
+
+  useEffect(() => {
+    if (showCollection) {
+      fetchCollection()
+    }
+  }, [showCollection, user])
+
+  useEffect(() => {
+    if (user) {
+      fetchUserStats()
+    }
+  }, [user])
+
+  // Live Countdown Timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setUserStats(prev => {
+        if (prev.next_energy_in_seconds <= 0) return prev;
+        
+        const newTime = prev.next_energy_in_seconds - 1;
+        // Auto-refresh stats when the timer hits zero to restore energy!
+        if (newTime === 0 && user) {
+          setTimeout(fetchUserStats, 1000);
+        }
+        return { ...prev, next_energy_in_seconds: newTime };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [user]);
+
+  const formatTime = (totalSeconds) => {
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const spin = async () => {
+    if (!user) return;
+    if (userStats.energy < 1) {
+      showToast("Недостатньо енергії! Зачекай поки відновиться ⚡");
+      return;
+    }
+
+    setResult(null)
+    setIsFlipping(false)
+    setLoading(true)
+    try {
+      const response = await axios.get(`${BACKEND_URL}/spin?user_id=${user.id}`)
+      setResult(response.data)
+      setTimeout(() => setIsFlipping(true), 50)
+      
+      // INSTANT UI UPDATE from spin payload without waiting for second networking roundtrip
+      setUserStats(prev => ({
+        ...prev,
+        energy: response.data.user_energy,
+        coins: response.data.user_coins
+      }))
+      
+      if (showCollection) fetchCollection()
+    } catch (error) {
+      console.error("Error spinning:", error)
+      const errorMsg = error.response?.data?.detail || error.message;
+      showToast(errorMsg);
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const buyEnergy = async () => {
+    if (!user) return;
+    if (userStats.coins < 1000) {
+      showToast("Недостатньо монет! Потрібно 1,000 🪙");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await axios.post(`${BACKEND_URL}/buy_energy?user_id=${user.id}`, null);
+      showToast(response.data.message);
+      setUserStats(prev => ({
+        ...prev,
+        energy: response.data.energy,
+        coins: response.data.coins
+      }));
+    } catch (error) {
+      showToast(error.response?.data?.detail || "Помилка покупки");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const premiumSpin = async () => {
+    if (!user) return;
+    if (userStats.coins < 10000) {
+      showToast("Недостатньо монет! Потрібно 10,000 🪙");
+      return;
+    }
+    setResult(null);
+    setIsFlipping(false);
+    setLoading(true);
+    setShowShop(false); // Close shop to see the result
+    try {
+      const response = await axios.get(`${BACKEND_URL}/premium_spin?user_id=${user.id}`);
+      setResult(response.data);
+      setTimeout(() => setIsFlipping(true), 50);
+      if (response.data.message) {
+        showToast(response.data.message);
+      }
+      setUserStats(prev => ({
+        ...prev,
+        energy: response.data.user_energy,
+        coins: response.data.user_coins
+      }));
+      if (showCollection) fetchCollection();
+    } catch (error) {
+      showToast(error.response?.data?.detail || "Помилка покупки");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getRarityColor = (rarity) => {
+    switch (rarity) {
+      case 'Mythic': return 'text-rose-500 border-rose-600 shadow-[0_0_15px_rgba(225,29,72,0.6)]';
+      case 'Legendary': return 'text-yellow-400 border-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.4)]';
+      case 'Epic': return 'text-fuchsia-400 border-fuchsia-500 shadow-fuchsia-500/30';
+      case 'Rare': return 'text-blue-400 border-blue-500 shadow-blue-500/20';
+      case 'UnCommon': return 'text-emerald-400 border-emerald-500 shadow-emerald-500/10';
+      default: return 'text-slate-300 border-slate-600 shadow-slate-500/10';
+    }
+  }
+
+  // Optimize React rerendering by caching the heavy algorithmic sort
+  const sortedCollection = useMemo(() => {
+    return [...collection].sort((a, b) => {
+      const weight = { 'Mythic': 6, 'Legendary': 5, 'Epic': 4, 'Rare': 3, 'UnCommon': 2, 'Common': 1 };
+      if (weight[b.rarity] !== weight[a.rarity]) return weight[b.rarity] - weight[a.rarity];
+      return a.name.localeCompare(b.name);
+    });
+  }, [collection]);
+
+  return (
+    <div className="flex flex-col items-center min-h-screen w-full bg-[#0f172a] text-white p-3 sm:p-5 font-sans select-none overflow-x-hidden relative">
+      
+      {/* Toast Notification Layer */}
+      {toast && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 min-w-[280px] z-[100] animate-fade-up">
+          <div className="bg-red-500/90 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-[0_10px_30px_rgba(239,68,68,0.5)] border-2 border-red-400 text-sm font-black text-center flex items-center justify-center gap-2">
+            ⚠️ {toast}
+          </div>
+        </div>
+      )}
+
+      <div className="w-full flex flex-col items-center flex-1 max-w-lg mx-auto">
+        {/* Header */}
+        <header className="w-full flex justify-between items-center py-1 sm:py-2 mb-2">
+          <h1 className="text-2xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 drop-shadow-sm pr-2">
+            UAIFU
+          </h1>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setShowShop(!showShop); setShowCollection(false); }}
+              className={`backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black border transition-all active:scale-95 shadow-lg flex items-center gap-2 ${showShop ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700'}`}
+            >
+              {showShop ? '🔙 НАЗАД' : '🛒 МАГАЗИН'}
+            </button>
+            <button
+              onClick={() => { setShowCollection(!showCollection); setShowShop(false); }}
+              className={`backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black border transition-all active:scale-95 shadow-lg flex items-center gap-2 ${showCollection ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700'}`}
+            >
+              {showCollection ? '🔙 НАЗАД' : '🎴 КОЛЕКЦІЯ'}
+            </button>
+          </div>
+        </header>
+
+        {/* Top Stats Bar */}
+        {!showCollection && !showShop && (
+          <div className="w-full max-w-md flex gap-2 mb-3">
+            <div className="flex-1 bg-slate-800/40 border border-slate-700/50 p-1.5 px-3 rounded-xl flex items-center justify-between">
+              <span className="text-[9px] font-bold text-slate-400">ЕНЕРГІЯ</span>
+              <span className={`text-xs font-black ${userStats.energy === 0 ? 'text-red-400' : 'text-cyan-400'}`}>
+                {userStats.energy}/{userStats.max_energy}
+              </span>
+            </div>
+            <div className="flex-1 bg-slate-800/40 border border-slate-700/50 p-1.5 px-3 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-1 text-xs font-black text-yellow-400">
+                {userStats.coins}
+                <img src="/coin.png" alt="Coins" className="w-4 h-4 object-cover object-center ml-0.5" style={{ imageRendering: 'auto' }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {user && !showCollection && !showShop && !result && (
+          <div className="mb-2 text-slate-400 text-[10px] animate-fade-in text-center font-medium">
+            Вітаємо, <span className="text-blue-400 font-bold">{user.first_name || 'Player'}</span>!
+          </div>
+        )}
+
+        {showShop ? (
+          <div className="w-full max-w-md animate-fade-in flex-1 flex flex-col items-center py-4">
+            <h2 className="text-2xl font-black tracking-tight mb-1 text-yellow-400 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">ЧОРНИЙ РИНОК</h2>
+            <p className="text-xs text-slate-400 mb-6 text-center">Витрать свої монети на найцінніші ресурси.</p>
+            
+            <div className="w-full bg-slate-800/40 border border-slate-700/50 p-3 rounded-xl flex items-center justify-between mb-8 shadow-inner">
+              <div className="flex items-center gap-1.5 text-lg font-black text-yellow-400">
+                {userStats.coins}
+                <img src="/coin.png" alt="Coins" className="w-6 h-6 object-cover object-center" style={{ imageRendering: 'auto' }} />
+              </div>
+            </div>
+            
+            <div className="w-full flex flex-col gap-4">
+              {/* Energy item */}
+              <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 flex items-center justify-between shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl">🔋</div>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-sm text-cyan-400">Енергія (+1)</span>
+                    <span className="text-[10px] text-slate-400">Миттєвий заряд для ще 1 крутки</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={buyEnergy}
+                  disabled={loading || userStats.coins < 1000}
+                  className={`px-4 py-2.5 rounded-[0.8rem] font-black text-xs transition-all active:scale-95 whitespace-nowrap ${loading || userStats.coins < 1000 ? 'bg-slate-700/50 text-slate-500 border border-slate-600 grayscale' : 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.3)]'}`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    1,000 <img src="/coin.png" className="w-4 h-4 object-cover object-center" alt="Coins" style={{ imageRendering: 'auto' }} />
+                  </div>
+                </button>
+              </div>
+
+              {/* Premium Spin item */}
+              <div className="bg-gradient-to-br from-yellow-900/40 to-amber-900/10 border border-yellow-600/40 rounded-2xl p-4 flex items-center justify-between relative overflow-hidden group shadow-lg">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="text-3xl drop-shadow-[0_0_10px_rgba(234,179,8,0.8)] animate-pulse">🌟</div>
+                  <div className="flex flex-col flex-1 pr-2">
+                    <span className="font-bold text-sm text-yellow-400">Преміум Крутка</span>
+                    <span className="text-[10px] text-yellow-500/70 leading-tight">100% Rare або краще! Ніякого ширпотребу.</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={premiumSpin}
+                  disabled={loading || userStats.coins < 10000}
+                  className={`px-4 py-2.5 rounded-[0.8rem] font-black text-xs relative z-10 transition-all active:scale-95 whitespace-nowrap ${loading || userStats.coins < 10000 ? 'bg-slate-800/60 text-slate-500 border border-slate-700 grayscale' : 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black border border-yellow-300 shadow-[0_0_20px_rgba(234,179,8,0.5)]'}`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    10k <img src="/coin.png" className="w-4 h-4 object-cover object-center" alt="Coins" style={{ imageRendering: 'auto' }} />
+                  </div>
+                </button>
+              </div>
+            </div>
+            
+          </div>
+        ) : showCollection ? (
+          <div className="w-full max-w-md animate-fade-in flex-1">
+            <div className="flex flex-row justify-between items-center mb-6">
+              <h2 className="text-xl font-black tracking-tight">ТВОЇ ЗДОБУТКИ</h2>
+              <div className="flex flex-col items-end gap-1">
+                <span className="bg-blue-500/10 text-blue-400 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-500/20">
+                  {collection.length} / {userStats.total_cards} КАРТ
+                </span>
+                <span className="text-[10px] font-bold text-slate-500 mr-2">
+                  ПРОГРЕС: {((collection.length / Math.max(1, userStats.total_cards)) * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pb-20">
+              {sortedCollection.map((card, idx) => (
+                <div key={idx} className="bg-slate-800/60 backdrop-blur-sm p-2 rounded-2xl border border-slate-700/50 overflow-hidden relative group">
+                  <div className="aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-slate-900">
+                    <img src={card.image} alt={card.name} loading="lazy" className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" />
+                  </div>
+                  <div className="px-1">
+                    <div className="text-[11px] font-black truncate leading-tight uppercase flex justify-between gap-1 items-center">
+                      <span className="truncate">{card.name}</span>
+                      {card.duplicates > 0 && <span className="bg-blue-500/20 text-blue-300 text-[8px] px-1 rounded-sm border border-blue-500/30 whitespace-nowrap">Lvl.{card.duplicates + 1}</span>}
+                    </div>
+                    <div className={`text-[9px] font-bold ${getRarityColor(card.rarity).split(' ')[0]}`}>
+                      {card.rarity}
+                    </div>
+                  </div>
+                  {card.rarity === 'Legendary' && (
+                    <div className="absolute top-1 right-1 text-xs">⭐</div>
+                  )}
+                </div>
+              ))}
+              {collection.length === 0 && (
+                <div className="col-span-2 py-20 text-center flex flex-col items-center gap-4 opacity-40">
+                  <div className="text-5xl">🌑</div>
+                  <div className="text-sm italic font-medium">Твоя колекція поки порожня...</div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="w-full max-w-md flex flex-col items-center flex-1 justify-center py-4">
+            {/* Main Card Slot - 3D Container */}
+            <div className="perspective-1000 relative w-full aspect-[3/4.2] max-w-[280px] group">
+              <div 
+                className={`w-full h-full rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-2 transition-transform duration-[800ms] transform-style-3d ${isFlipping ? 'rotate-y-180' : ''} ${result && isFlipping ? getRarityColor(result.rarity) : 'border-slate-700/50 border-dashed bg-slate-800'}`}
+                style={{ willChange: 'transform' }}
+              >
+
+                {/* DEFAULT STATE (Card Back with Dice) - Faces Front initially */}
+                <div 
+                  className="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-6 rounded-[2.5rem] bg-slate-800 border-2 border-slate-700/50 border-dashed"
+                  style={{ transform: 'translateZ(1px)' }}
+                >
+                  <div className={`w-20 h-20 rounded-full bg-slate-900 flex items-center justify-center shadow-inner border border-slate-700 ${loading ? 'animate-spin' : 'animate-pulse'}`}>
+                    <span className="text-4xl text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">🎲</span>
+                  </div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 text-center leading-loose">
+                    {loading ? <>Тягнемо<br />картку...</> : <>Очікування<br />результату</>}
+                  </div>
+                </div>
+
+                {/* REVEALED STATE (The Result) - Faces Back initially, rotates to Front */}
+                <div 
+                  className={`absolute inset-0 backface-hidden flex flex-col p-3 rounded-[2.5rem] bg-slate-900 border-2 ${result ? getRarityColor(result.rarity) : ''}`}
+                  style={{ transform: 'rotateY(180deg) translateZ(1px)' }}
+                >
+                  <div className="flex-1 rounded-[1.8rem] bg-[#0b1120] flex items-center justify-center overflow-hidden relative shadow-inner">
+                    {result && (
+                      <>
+                        <img src={result.image} alt={result.name} className="w-full h-full object-cover animate-pop-in" style={{ WebkitTransform: 'translateZ(0)' }} />
+                        {result.is_gold && (
+                          <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/40 via-transparent to-yellow-500/10 animate-pulse"></div>
+                        )}
+                        
+                        {/* Overlay for duplicate level up */}
+                        {result.new_level > 0 && (
+                          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 animate-bounce">
+                            <span className="bg-blue-600/90 text-white text-[12px] font-black px-3 py-1 rounded-xl shadow-lg border-2 border-blue-400 whitespace-nowrap hidden sm:inline-block">
+                              Lvl.{result.new_level} 🆙
+                            </span>
+                            <span className="bg-blue-600/90 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-lg border-2 border-blue-400 whitespace-nowrap sm:hidden">
+                              Lvl.{result.new_level} 🆙
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Overlay for name */}
+                        <div className="absolute bottom-4 left-4 right-4 py-2 rounded-xl bg-black/60 border border-white/10 text-center animate-fade-up">
+                          <div className="text-xs font-black uppercase tracking-widest">{result.name}</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Rare Badge */}
+                  {result && (
+                    <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border-2 bg-slate-900 ${getRarityColor(result.rarity).split(' ')[0]} ${getRarityColor(result.rarity).split(' ')[1]}`}>
+                      {result.rarity}
+                    </div>
+                  )}
+
+                  {/* NEW! Badge */}
+                  {result?.is_new && (
+                    <div className="absolute -top-4 -right-4 bg-gradient-to-r from-red-500 to-rose-600 text-white text-[12px] font-black px-4 py-1 rounded-full shadow-[0_0_20px_rgba(225,29,72,0.8)] border-2 border-red-400/50 rotate-12 z-50 animate-bounce">
+                      NEW!
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+
+            {/* Action Area */}
+            <div className="mt-4 w-full px-2 flex-1 flex flex-col justify-end pb-2">
+              <button
+                onClick={spin}
+                disabled={loading || userStats.energy < 1}
+                className={`w-full py-3.5 rounded-2xl font-black text-base tracking-widest uppercase transition-all duration-300 transform active:scale-95 shadow-xl relative overflow-hidden group ${(loading || userStats.energy < 1)
+                    ? 'bg-slate-800 text-slate-600 grayscale'
+                    : 'bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-500 hover:to-purple-600 text-white shadow-blue-500/40'
+                  }`}
+              >
+                <span className="relative z-10 font-mono tracking-[0.2em]">
+                  {loading ? 'ПРОЦЕС...' : (userStats.energy < 1 ? `⏳ ${formatTime(userStats.next_energy_in_seconds)}` : 'КРУТИТИ')}
+                </span>
+                {!loading && userStats.energy >= 1 && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                )}
+              </button>
+
+              {result && (
+                <div className="mt-3 text-center animate-bounce-slow">
+                  <span className="bg-slate-800/80 px-4 py-1.5 rounded-full text-[10px] font-bold text-slate-300 border border-slate-700/50">
+                    ✨ {result.message}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default App
