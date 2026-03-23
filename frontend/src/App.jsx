@@ -99,9 +99,14 @@ function App() {
     setIsFlipping(false)
     setLoading(true)
     try {
-      const response = await axios.get(`${BACKEND_URL}/spin?user_id=${user.id}`)
+      // Run request and minimum delay in parallel — result shows only after BOTH finish
+      const minDelay = new Promise(resolve => setTimeout(resolve, 1400))
+      const [response] = await Promise.all([
+        axios.get(`${BACKEND_URL}/spin?user_id=${user.id}`),
+        minDelay
+      ])
       setResult(response.data)
-      setTimeout(() => setIsFlipping(true), 50)
+      setTimeout(() => setIsFlipping(true), 100)
       
       // INSTANT UI UPDATE from spin payload without waiting for second networking roundtrip
       setUserStats(prev => ({
@@ -151,11 +156,16 @@ function App() {
     setResult(null);
     setIsFlipping(false);
     setLoading(true);
-    setShowShop(false); // Close shop to see the result
+    setShowShop(false);
     try {
-      const response = await axios.get(`${BACKEND_URL}/premium_spin?user_id=${user.id}`);
+      // Run request and minimum delay in parallel — result shows only after BOTH finish
+      const minDelay = new Promise(resolve => setTimeout(resolve, 1400))
+      const [response] = await Promise.all([
+        axios.get(`${BACKEND_URL}/premium_spin?user_id=${user.id}`),
+        minDelay
+      ])
       setResult(response.data);
-      setTimeout(() => setIsFlipping(true), 50);
+      setTimeout(() => setIsFlipping(true), 100);
       if (response.data.message) {
         showToast(response.data.message);
       }
