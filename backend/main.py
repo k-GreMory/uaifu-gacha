@@ -15,7 +15,7 @@ import models
 from database import engine, SessionLocal, get_db
 from cards_data import CARDS, RARITY_CHANCES
 
-from sqladmin import Admin, ModelView
+from sqladmin import Admin, ModelView, BaseView, expose
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -366,7 +366,33 @@ class AdminAuth(AuthenticationBackend):
         return True
 
 authentication_backend = AdminAuth(secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
-admin = Admin(app, engine, authentication_backend=authentication_backend)
+admin = Admin(
+    app, 
+    engine, 
+    authentication_backend=authentication_backend,
+    templates_dir="backend/templates",
+    title="UAIFU Admin"
+)
+
+class DashboardView(BaseView):
+    name = "Панель керування"
+    icon = "fa-solid fa-chart-line"
+
+    @expose("/", methods=["GET"])
+    async def index(self, request: Request):
+        db = SessionLocal()
+        stats = {
+            "total_users": db.query(models.User).count(),
+            "total_cards": db.query(models.Card).count(),
+            "total_spins": db.query(models.SpinLog).count(),
+            "total_coins": db.query(models.User.coins).with_entities(func.sum(models.User.coins)).scalar() or 0
+        }
+        db.close()
+        return await self.templates.TemplateResponse(
+            request, "admin_dashboard.html", {"stats": stats}
+        )
+
+admin.add_view(DashboardView)
 
 class UserAdmin(ModelView, model=models.User):
     column_list = [models.User.id, models.User.username, models.User.coins, models.User.energy]
