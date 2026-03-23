@@ -1,132 +1,62 @@
-{% extends "sqladmin/layout.html" %}
+{% extends "sqladmin/base.html" %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h2 class="display-5 font-weight-bold" style="color: #344767;">UAIFU Admin Center</h2>
-            <p class="text-muted">Керування грою та перегляд статистики в реальному часі.</p>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-8">
-                            <div class="numbers">
-                                <p class="text-sm mb-0 text-capitalize font-weight-bold">Користувачі</p>
-                                <h5 class="font-weight-bolder mb-0">{{ stats.total_users }}</h5>
-                            </div>
-                        </div>
-                        <div class="col-4 text-end">
-                            <div class="icon icon-shape bg-primary shadow text-center border-radius-md" style="width: 48px; height: 48px; background: linear-gradient(310deg, #7928CA, #FF0080); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;">
-                                <i class="fa fa-users text-white" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-8">
-                            <div class="numbers">
-                                <p class="text-sm mb-0 text-capitalize font-weight-bold">Картки в базі</p>
-                                <h5 class="font-weight-bolder mb-0">{{ stats.total_cards }}</h5>
-                            </div>
-                        </div>
-                        <div class="col-4 text-end">
-                            <div class="icon icon-shape bg-success shadow text-center border-radius-md" style="width: 48px; height: 48px; background: linear-gradient(310deg, #17ad37, #98ec2d); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;">
-                                <i class="fa fa-image text-white" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-8">
-                            <div class="numbers">
-                                <p class="text-sm mb-0 text-capitalize font-weight-bold">Всього спінів</p>
-                                <h5 class="font-weight-bolder mb-0">{{ stats.total_spins }}</h5>
-                            </div>
-                        </div>
-                        <div class="col-4 text-end">
-                            <div class="icon icon-shape bg-warning shadow text-center border-radius-md" style="width: 48px; height: 48px; background: linear-gradient(310deg, #f53939, #fbcf33); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;">
-                                <i class="fa fa-sync text-white" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-8">
-                            <div class="numbers">
-                                <p class="text-sm mb-0 text-capitalize font-weight-bold">Обіг монет</p>
-                                <h5 class="font-weight-bolder mb-0">{{ stats.total_coins }} 🪙</h5>
-                            </div>
-                        </div>
-                        <div class="col-4 text-end">
-                            <div class="icon icon-shape bg-danger shadow text-center border-radius-md" style="width: 48px; height: 48px; background: linear-gradient(310deg, #ea0606, #ff667c); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;">
-                                <i class="fa fa-coins text-white" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <h2 class="page-title">UAIFU Admin Center</h2>
+                <div class="text-muted mt-1">Керування грою та статистика.</div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block main_content %}
-<div class="container-fluid py-4">
-    <!-- Duplicate same content here for main_content block -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <h2 class="display-5 font-weight-bold" style="color: #344767;">UAIFU Admin Center</h2>
-            <p class="text-muted">Керування грою та перегляд статистики в реальному часі.</p>
-        </div>
-    </div>
-    <div class="row g-4">
-        {% for label, val, icon, color in [
-            ('Користувачі', stats.total_users, 'fa-users', 'linear-gradient(310deg, #7928CA, #FF0080)'),
-            ('Картки в базі', stats.total_cards, 'fa-image', 'linear-gradient(310deg, #17ad37, #98ec2d)'),
-            ('Всього спінів', stats.total_spins, 'fa-sync', 'linear-gradient(310deg, #f53939, #fbcf33)'),
-            ('Обіг монет', stats.total_coins, 'fa-coins', 'linear-gradient(310deg, #ea0606, #ff667c)')
-        ] %}
-        <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
-            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-8">
-                            <p class="text-sm mb-0 text-capitalize font-weight-bold">{{ label }}</p>
-                            <h5 class="font-weight-bolder mb-0">{{ val }} {% if label == 'Обіг монет' %}🪙{% endif %}</h5>
+<div class="page-body">
+    <div class="container-xl">
+        <div class="row row-deck row-cards">
+            <!-- Stats -->
+            <div class="col-sm-6 col-lg-3">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="subheader">Користувачі</div>
                         </div>
-                        <div class="col-4 text-end">
-                            <div class="icon icon-shape text-center shadow border-radius-md" style="width: 48px; height: 48px; background: {{ color }}; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;">
-                                <i class="fa {{ icon }} text-white" aria-hidden="true"></i>
-                            </div>
+                        <div class="h1 mb-3">{{ stats.total_users }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="subheader">Картки</div>
                         </div>
+                        <div class="h1 mb-3">{{ stats.total_cards }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="subheader">Спіни</div>
+                        </div>
+                        <div class="h1 mb-3">{{ stats.total_spins }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="subheader">Монети</div>
+                        </div>
+                        <div class="h1 mb-3">{{ stats.total_coins }} 🪙</div>
                     </div>
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
 </div>
 {% endblock %}
