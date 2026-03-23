@@ -379,14 +379,6 @@ class AdminAuth(AuthenticationBackend):
         return True
 
 authentication_backend = AdminAuth(secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
-admin = Admin(
-    app, 
-    engine, 
-    authentication_backend=authentication_backend,
-    templates_dir=TEMPLATES_DIR,
-    title="UAIFU Admin"
-)
-
 class DashboardView(BaseView):
     name = "Панель керування"
     icon = "fa-solid fa-chart-line"
@@ -414,10 +406,17 @@ class DashboardView(BaseView):
             db.close()
         
         return await self.templates.TemplateResponse(
-            request, "test_rendering.html", {"stats": stats, "chart_data": chart_data}
+            request, "admin_dashboard.html", {"stats": stats, "chart_data": chart_data}
         )
 
-admin.add_view(DashboardView)
+admin = Admin(
+    app, 
+    engine, 
+    authentication_backend=authentication_backend,
+    templates_dir=TEMPLATES_DIR,
+    title="UAIFU Admin",
+    index_view=DashboardView()
+)
 
 class UserAdmin(ModelView, model=models.User):
     name = "Користувач"
