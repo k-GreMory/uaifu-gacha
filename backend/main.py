@@ -44,9 +44,10 @@ seed_database()
 
 load_dotenv()
 
-from starlette.middleware.sessions import SessionMiddleware
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
-app = FastAPI(title="UAIFU Gacha API", version="1.0.0")
+app = FastAPI(title="UAIFU Admin API", version="1.0.0")
 
 # Add session middleware for sqladmin
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
@@ -70,9 +71,11 @@ app.add_middleware(
 # Force HTTPS for sqladmin on Railway
 @app.middleware("http")
 async def https_middleware(request: Request, call_next):
-    if request.headers.get("x-forwarded-proto") == "https":
-        # Modify the scope to tell starlette we are on https
+    # Check for X-Forwarded-Proto or if we are already on https
+    if request.headers.get("x-forwarded-proto") == "https" or request.url.scheme == "https":
         request.scope["scheme"] = "https"
+    
+    # Also fix the URL for redirect responses if needed
     response = await call_next(request)
     return response
 
@@ -379,7 +382,7 @@ admin = Admin(
     app, 
     engine, 
     authentication_backend=authentication_backend,
-    templates_dir="backend/templates",
+    templates_dir=TEMPLATES_DIR,
     title="UAIFU Admin"
 )
 
@@ -413,7 +416,8 @@ class UserAdmin(ModelView, model=models.User):
 class CardAdmin(ModelView, model=models.Card):
     column_list = ["id", "name", "rarity"]
     column_searchable_list = ["name", "id"]
-    column_filters = ["rarity"]
+    # Temporarily remove filters to avoid AttributeError: 'str' object has no attribute 'parameter_name'
+    # column_filters = ["rarity"]
     name = "Персонаж"
     name_plural = "Персонажі"
     icon = "fa-solid fa-image"
