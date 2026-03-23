@@ -67,6 +67,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Force HTTPS for sqladmin on Railway
+@app.middleware("http")
+async def https_middleware(request: Request, call_next):
+    if request.headers.get("x-forwarded-proto") == "https":
+        # Modify the scope to tell starlette we are on https
+        request.scope["scheme"] = "https"
+    response = await call_next(request)
+    return response
+
 class SpinResult(BaseModel):
     card_id: str
     name: str
@@ -385,7 +394,7 @@ class DashboardView(BaseView):
             "total_users": db.query(models.User).count(),
             "total_cards": db.query(models.Card).count(),
             "total_spins": db.query(models.SpinLog).count(),
-            "total_coins": db.query(models.User.coins).with_entities(func.sum(models.User.coins)).scalar() or 0
+            "total_coins": db.query(func.sum(models.User.coins)).scalar() or 0
         }
         db.close()
         return await self.templates.TemplateResponse(
@@ -402,9 +411,9 @@ class UserAdmin(ModelView, model=models.User):
     icon = "fa-solid fa-user"
 
 class CardAdmin(ModelView, model=models.Card):
-    column_list = [models.Card.id, models.Card.name, models.Card.rarity]
-    column_searchable_list = [models.Card.name, models.Card.id]
-    column_filters = [models.Card.rarity]
+    column_list = ["id", "name", "rarity"]
+    column_searchable_list = ["name", "id"]
+    column_filters = ["rarity"]
     name = "Персонаж"
     name_plural = "Персонажі"
     icon = "fa-solid fa-image"
