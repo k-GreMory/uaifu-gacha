@@ -15,6 +15,11 @@ import models
 from database import engine, SessionLocal, get_db
 from cards_data import CARDS, RARITY_CHANCES
 
+from sqladmin import Admin, ModelView
+from sqladmin.authentication import AuthenticationBackend
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
+
 # Create tables
 models.Base.metadata.create_all(bind=engine)
 
@@ -39,7 +44,12 @@ seed_database()
 
 load_dotenv()
 
+from starlette.middleware.sessions import SessionMiddleware
+
 app = FastAPI(title="UAIFU Gacha API", version="1.0.0")
+
+# Add session middleware for sqladmin
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
 
 @app.get("/")
 async def root():
@@ -334,6 +344,69 @@ async def get_collection(user_id: int, db: Session = Depends(get_db)):
             })
     return result
 
+# --- Admin Section ---
+
+class AdminAuth(AuthenticationBackend):
+    async def login(self, request: Request) -> bool:
+        form = await request.form()
+        secret = form.get("username") # Using username field for the secret key
+        if secret == os.getenv("ADMIN_SECRET"):
+            request.session.update({"token": secret})
+            return True
+        return False
+
+    async def logout(self, request: Request) -> bool:
+        request.session.clear()
+        return True
+
+    async def authenticate(self, request: Request) -> bool:
+        token = request.session.get("token")
+        if not token or token != os.getenv("ADMIN_SECRET"):
+            return False
+        return True
+
+authentication_backend = AdminAuth(secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
+admin = Admin(app, engine, authentication_backend=authentication_backend)
+
+class UserAdmin(ModelView, model=models.User):
+    column_list = [models.User.id, models.User.username, models.User.coins, models.User.energy]
+    column_searchable_list = [models.User.username, models.User.id]
+    name = "Користувач"
+    name_plural = "Користувачі"
+    icon = "fa-solid fa-user"
+
+class CardAdmin(ModelView, model=models.Card):
+    column_list = [models.Card.id, models.Card.name, models.Card.rarity]
+    column_searchable_list = [models.Card.name, models.Card.id]
+    column_filters = [models.Card.rarity]
+    name = "Персонаж"
+    name_plural = "Персонажі"
+    icon = "fa-solid fa-image"
+
+class UserCardAdmin(ModelView, model=models.UserCard):
+    column_list = [models.UserCard.user_id, models.UserCard.card_id, models.UserCard.duplicates]
+    column_searchable_list = [models.UserCard.user_id, models.UserCard.card_id]
+    name = "Колекція"
+    name_plural = "Колекції"
+    icon = "fa-solid fa-box"
+
+class SpinLogAdmin(ModelView, model=models.SpinLog):
+    column_list = [models.SpinLog.id, models.SpinLog.user_id, models.SpinLog.card_id, models.SpinLog.timestamp]
+    name = "Лог Спінів"
+    name_plural = "Логи Спінів"
+    icon = "fa-solid fa-list"
+
+class PurchaseLogAdmin(ModelView, model=models.PurchaseLog):
+    column_list = [models.PurchaseLog.id, models.PurchaseLog.user_id, models.PurchaseLog.item, models.PurchaseLog.cost]
+    name = "Лог Покупок"
+    name_plural = "Логи Покупок"
+    icon = "fa-solid fa-cart-shopping"
+
+admin.add_view(UserAdmin)
+admin.add_view(CardAdmin)
+admin.add_view(UserCardAdmin)
+admin.add_view(SpinLogAdmin)
+admin.add_view(PurchaseLogAdmin)
 
 if __name__ == "__main__":
     import uvicorn

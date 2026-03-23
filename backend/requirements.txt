@@ -6,3 +6,5 @@ sqlalchemy
 pydantic
 python-dotenv
 requests
+sqladmin
+itsdangerous
