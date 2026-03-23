@@ -414,7 +414,7 @@ class DashboardView(BaseView):
             db.close()
         
         return await self.templates.TemplateResponse(
-            request, "admin_dashboard.html", {"stats": stats, "chart_data": chart_data}
+            request, "test_rendering.html", {"stats": stats, "chart_data": chart_data}
         )
 
 admin.add_view(DashboardView)
