@@ -19,6 +19,7 @@ from sqladmin import Admin, ModelView, BaseView, expose
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
