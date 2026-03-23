@@ -391,7 +391,7 @@ class DashboardView(BaseView):
     name = "Панель керування"
     icon = "fa-solid fa-chart-line"
 
-    @expose("/", methods=["GET"])
+    @expose("/home", methods=["GET"])
     async def index(self, request: Request):
         db = SessionLocal()
         try:
@@ -408,14 +408,13 @@ class DashboardView(BaseView):
             spin_stats = db.query(
                 func.date(models.SpinLog.timestamp).label('date'),
                 func.count(models.SpinLog.id).label('count')
-            ).filter(models.SpinLog.timestamp >= seven_days_ago).group_by(func.date(models.SpinLog.timestamp)).all()
+            ).filter(models.SpinLog.timestamp >= seven_days_ago).group_by(func.date(models.SpinLog.timestamp)).order_by(func.date(models.SpinLog.timestamp)).all()
             
             # Chart Data: New Users last 7 days
             user_stats = db.query(
-                func.date(models.User.last_energy_update).label('date'), # Using energy update as a proxy for activity if needed, but User lacks joined_at. 
-                # Wait, I should add joined_at if I want true growth. For now let's use SpinLog as a proxy for activity.
+                func.date(models.User.last_energy_update).label('date'),
                 func.count(models.User.id).label('count')
-            ).group_by(func.date(models.User.last_energy_update)).limit(7).all()
+            ).group_by(func.date(models.User.last_energy_update)).order_by(func.date(models.User.last_energy_update)).limit(7).all()
 
             # Format for ApexCharts
             chart_data = {
@@ -442,6 +441,10 @@ class DashboardView(BaseView):
 
 admin.add_view(DashboardView)
 
+@app.get("/admin", include_in_schema=False)
+async def admin_home_redirect():
+    return RedirectResponse(url="/admin/home")
+
 class UserAdmin(ModelView, model=models.User):
     column_list = [models.User.id, models.User.username, models.User.coins, models.User.energy]
     column_searchable_list = [models.User.username, models.User.id]
@@ -450,10 +453,9 @@ class UserAdmin(ModelView, model=models.User):
     icon = "fa-solid fa-user"
 
 class CardAdmin(ModelView, model=models.Card):
-    column_list = ["id", "name", "rarity"]
-    column_searchable_list = ["name", "id"]
-    # Temporarily remove filters to avoid AttributeError: 'str' object has no attribute 'parameter_name'
-    # column_filters = ["rarity"]
+    column_list = [models.Card.id, models.Card.name, models.Card.rarity]
+    column_searchable_list = [models.Card.name, models.Card.id]
+    column_filters = [models.Card.rarity]
     name = "Персонаж"
     name_plural = "Персонажі"
     icon = "fa-solid fa-image"
