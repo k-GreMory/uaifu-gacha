@@ -379,11 +379,10 @@ class AdminAuth(AuthenticationBackend):
         return True
 
 authentication_backend = AdminAuth(secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
-class DashboardView(BaseView):
-    name = "Панель керування"
-    icon = "fa-solid fa-chart-line"
+from sqladmin.authentication import login_required
 
-    @expose("/", methods=["GET"])
+class CustomAdmin(Admin):
+    @login_required
     async def index(self, request: Request):
         db = SessionLocal()
         try:
@@ -409,13 +408,12 @@ class DashboardView(BaseView):
             request, "admin_dashboard.html", {"stats": stats, "chart_data": chart_data}
         )
 
-admin = Admin(
+admin = CustomAdmin(
     app, 
     engine, 
     authentication_backend=authentication_backend,
     templates_dir=TEMPLATES_DIR,
-    title="UAIFU Admin",
-    index_view=DashboardView()
+    title="UAIFU Admin"
 )
 
 class UserAdmin(ModelView, model=models.User):
