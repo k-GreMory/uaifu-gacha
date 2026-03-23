@@ -1,12 +1,14 @@
 {% extends "sqladmin/base.html" %}
 
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
 <div class="page-header d-print-none">
     <div class="container-xl">
         <div class="row g-2 align-items-center">
             <div class="col">
-                <h2 class="page-title">UAIFU Admin Center</h2>
-                <div class="text-muted mt-1">Керування грою та перегляд статистики.</div>
+                <h2 class="page-title">UAIFU Admin Center 📈</h2>
+                <div class="text-muted mt-1">Огляд активності та статистика гри в реальному часі.</div>
             </div>
         </div>
     </div>
@@ -15,7 +17,7 @@
 <div class="page-body">
     <div class="container-xl">
         <div class="row row-deck row-cards">
-            <!-- Simple Stats Cards -->
+            <!-- Stats -->
             <div class="col-sm-6 col-lg-3">
                 <div class="card card-sm">
                     <div class="card-body">
@@ -25,7 +27,7 @@
                             </div>
                             <div class="col">
                                 <div class="font-weight-medium">Користувачі</div>
-                                <div class="text-secondary">{{ stats.total_users }}</div>
+                                <div class="text-secondary">{{ stats.total_users }} осіб</div>
                             </div>
                         </div>
                     </div>
@@ -40,7 +42,7 @@
                             </div>
                             <div class="col">
                                 <div class="font-weight-medium">Персонажі</div>
-                                <div class="text-secondary">{{ stats.total_cards }}</div>
+                                <div class="text-secondary">{{ stats.total_cards }} в базі</div>
                             </div>
                         </div>
                     </div>
@@ -55,7 +57,7 @@
                             </div>
                             <div class="col">
                                 <div class="font-weight-medium">Всього спінів</div>
-                                <div class="text-secondary">{{ stats.total_spins }}</div>
+                                <div class="text-secondary">{{ stats.total_spins }} разів</div>
                             </div>
                         </div>
                     </div>
@@ -76,17 +78,51 @@
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="row mt-4">
-            <div class="col-12">
+
+            <!-- Charts -->
+            <div class="col-lg-8">
                 <div class="card">
                     <div class="card-body">
-                        <p>Вітаємо в адмін-панелі UAIFU Gacha. Використовуйте бокове меню для керування базою даних.</p>
+                        <h3 class="card-title">Активність: Кількість спінів (Останні 7 днів)</h3>
+                        <div id="chart-spins" style="min-height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title">Активність користувачів</h3>
+                        <div id="chart-users" style="min-height: 250px;"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const chartData = {{ chart_data | tojson }};
+        
+        // Spins Chart
+        new ApexCharts(document.querySelector("#chart-spins"), {
+            chart: { type: 'area', height: 250, toolbar: { show: false }, zoom: { enabled: false } },
+            series: [{ name: 'Спіни', data: chartData.spins.values }],
+            xaxis: { categories: chartData.spins.labels },
+            colors: ['#206bc4'],
+            dataLabels: { enabled: false },
+            fill: { type: 'gradient', gradient: { opacityFrom: 0.6, opacityTo: 0.1 } },
+            stroke: { curve: 'smooth', width: 2 }
+        }).render();
+
+        // Users Growth Chart
+        new ApexCharts(document.querySelector("#chart-users"), {
+            chart: { type: 'bar', height: 250, toolbar: { show: false } },
+            series: [{ name: 'Активні', data: chartData.activities.values }],
+            xaxis: { categories: chartData.activities.labels },
+            colors: ['#4299e1'],
+            plotOptions: { bar: { columnWidth: '50%', borderRadius: 4 } }
+        }).render();
+    });
+</script>
 {% endblock %}

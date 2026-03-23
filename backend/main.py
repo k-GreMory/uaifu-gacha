@@ -395,20 +395,49 @@ class DashboardView(BaseView):
     async def index(self, request: Request):
         db = SessionLocal()
         try:
+            # Basic Stats
             stats = {
                 "total_users": db.query(models.User).count() or 0,
                 "total_cards": db.query(models.Card).count() or 0,
                 "total_spins": db.query(models.SpinLog).count() or 0,
                 "total_coins": db.query(func.sum(models.User.coins)).scalar() or 0
             }
+
+            # Chart Data: Spins last 7 days
+            seven_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+            spin_stats = db.query(
+                func.date(models.SpinLog.timestamp).label('date'),
+                func.count(models.SpinLog.id).label('count')
+            ).filter(models.SpinLog.timestamp >= seven_days_ago).group_by(func.date(models.SpinLog.timestamp)).all()
+            
+            # Chart Data: New Users last 7 days
+            user_stats = db.query(
+                func.date(models.User.last_energy_update).label('date'), # Using energy update as a proxy for activity if needed, but User lacks joined_at. 
+                # Wait, I should add joined_at if I want true growth. For now let's use SpinLog as a proxy for activity.
+                func.count(models.User.id).label('count')
+            ).group_by(func.date(models.User.last_energy_update)).limit(7).all()
+
+            # Format for ApexCharts
+            chart_data = {
+                "spins": {
+                    "labels": [str(s.date) for s in spin_stats],
+                    "values": [s.count for s in spin_stats]
+                },
+                "activities": {
+                    "labels": [str(u.date) for u in user_stats],
+                    "values": [u.count for u in user_stats]
+                }
+            }
+
         except Exception as e:
-            print(f"Stats Error: {e}")
+            print(f"Dashboard Data Error: {e}")
             stats = {"total_users": 0, "total_cards": 0, "total_spins": 0, "total_coins": 0}
+            chart_data = {"spins": {"labels": [], "values": []}, "activities": {"labels": [], "values": []}}
         finally:
             db.close()
         
         return await self.templates.TemplateResponse(
-            request, "admin_dashboard.html", {"stats": stats}
+            request, "admin_dashboard.html", {"stats": stats, "chart_data": chart_data}
         )
 
 admin.add_view(DashboardView)
