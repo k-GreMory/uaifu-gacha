@@ -391,7 +391,7 @@ class DashboardView(BaseView):
     name = "Панель керування"
     icon = "fa-solid fa-chart-line"
 
-    @expose("/home", methods=["GET"])
+    @expose("/", methods=["GET"])
     async def index(self, request: Request):
         db = SessionLocal()
         try:
@@ -404,27 +404,27 @@ class DashboardView(BaseView):
             }
 
             # Chart Data: Spins last 7 days
-            seven_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+            seven_days_ago = datetime.utcnow() - timedelta(days=7)
             spin_stats = db.query(
                 func.date(models.SpinLog.timestamp).label('date'),
                 func.count(models.SpinLog.id).label('count')
             ).filter(models.SpinLog.timestamp >= seven_days_ago).group_by(func.date(models.SpinLog.timestamp)).order_by(func.date(models.SpinLog.timestamp)).all()
             
-            # Chart Data: New Users last 7 days
-            user_stats = db.query(
-                func.date(models.User.last_energy_update).label('date'),
-                func.count(models.User.id).label('count')
-            ).group_by(func.date(models.User.last_energy_update)).order_by(func.date(models.User.last_energy_update)).limit(7).all()
+            # Chart Data: Activity (Spins per user) last 7 days
+            user_activity_stats = db.query(
+                func.date(models.SpinLog.timestamp).label('date'),
+                func.count(func.distinct(models.SpinLog.user_id)).label('count')
+            ).filter(models.SpinLog.timestamp >= seven_days_ago).group_by(func.date(models.SpinLog.timestamp)).order_by(func.date(models.SpinLog.timestamp)).all()
 
             # Format for ApexCharts
             chart_data = {
                 "spins": {
                     "labels": [str(s.date) for s in spin_stats],
-                    "values": [s.count for s in spin_stats]
+                    "values": [int(s.count) for s in spin_stats]
                 },
                 "activities": {
-                    "labels": [str(u.date) for u in user_stats],
-                    "values": [u.count for u in user_stats]
+                    "labels": [str(u.date) for u in user_activity_stats],
+                    "values": [int(u.count) for u in user_activity_stats]
                 }
             }
 
@@ -441,10 +441,6 @@ class DashboardView(BaseView):
 
 admin.add_view(DashboardView)
 
-@app.get("/admin", include_in_schema=False)
-async def admin_home_redirect():
-    return RedirectResponse(url="/admin/home")
-
 class UserAdmin(ModelView, model=models.User):
     column_list = [models.User.id, models.User.username, models.User.coins, models.User.energy]
     column_searchable_list = [models.User.username, models.User.id]
@@ -455,7 +451,7 @@ class UserAdmin(ModelView, model=models.User):
 class CardAdmin(ModelView, model=models.Card):
     column_list = [models.Card.id, models.Card.name, models.Card.rarity]
     column_searchable_list = [models.Card.name, models.Card.id]
-    column_filters = [models.Card.rarity]
+    column_filters = ["rarity"] # Must be string to avoid parameter_name error on some versions
     name = "Персонаж"
     name_plural = "Персонажі"
     icon = "fa-solid fa-image"
