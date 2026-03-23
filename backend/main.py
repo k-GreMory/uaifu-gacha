@@ -394,13 +394,19 @@ class DashboardView(BaseView):
     @expose("/", methods=["GET"])
     async def index(self, request: Request):
         db = SessionLocal()
-        stats = {
-            "total_users": db.query(models.User).count(),
-            "total_cards": db.query(models.Card).count(),
-            "total_spins": db.query(models.SpinLog).count(),
-            "total_coins": db.query(func.sum(models.User.coins)).scalar() or 0
-        }
-        db.close()
+        try:
+            stats = {
+                "total_users": db.query(models.User).count() or 0,
+                "total_cards": db.query(models.Card).count() or 0,
+                "total_spins": db.query(models.SpinLog).count() or 0,
+                "total_coins": db.query(func.sum(models.User.coins)).scalar() or 0
+            }
+        except Exception as e:
+            print(f"Stats Error: {e}")
+            stats = {"total_users": 0, "total_cards": 0, "total_spins": 0, "total_coins": 0}
+        finally:
+            db.close()
+        
         return await self.templates.TemplateResponse(
             request, "admin_dashboard.html", {"stats": stats}
         )
