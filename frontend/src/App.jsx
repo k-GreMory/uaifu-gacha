@@ -19,6 +19,18 @@ function App() {
   const [referralData, setReferralData] = useState(null)
   const [claimingTask, setClaimingTask] = useState(null)
 
+  const triggerHaptic = (type = 'light') => {
+    const haptic = window.Telegram?.WebApp?.HapticFeedback;
+    if (!haptic) return;
+    if (['light', 'medium', 'heavy', 'rigid', 'soft'].includes(type)) {
+      haptic.impactOccurred(type);
+    } else if (['error', 'success', 'warning'].includes(type)) {
+      haptic.notificationOccurred(type);
+    } else if (type === 'selection') {
+      haptic.selectionChanged();
+    }
+  }
+
   const showToast = (message) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
@@ -71,6 +83,7 @@ function App() {
   const claimSeasonTask = async (taskId) => {
     if (!user) return;
     setClaimingTask(taskId);
+    triggerHaptic('selection');
     try {
       const res = await axios.post(`${BACKEND_URL}/season/claim?user_id=${user.id}&task_id=${taskId}`)
       showToast(res.data.message)
@@ -155,6 +168,7 @@ function App() {
     setResult(null)
     setIsFlipping(false)
     setLoading(true)
+    triggerHaptic('light')
     try {
       // Run request and minimum delay in parallel — result shows only after BOTH finish
       const minDelay = new Promise(resolve => setTimeout(resolve, 1400))
@@ -163,7 +177,14 @@ function App() {
         minDelay
       ])
       setResult(response.data)
-      setTimeout(() => setIsFlipping(true), 100)
+      setTimeout(() => {
+        setIsFlipping(true);
+        if (['Legendary', 'Mythic'].includes(response.data.rarity)) {
+          triggerHaptic('success');
+        } else {
+          triggerHaptic('medium');
+        }
+      }, 100)
       
       // INSTANT UI UPDATE from spin payload without waiting for second networking roundtrip
       setUserStats(prev => ({
@@ -189,6 +210,7 @@ function App() {
       return;
     }
     setLoading(true);
+    triggerHaptic('medium');
     try {
       const response = await axios.post(`${BACKEND_URL}/buy_energy?user_id=${user.id}`, null);
       showToast(response.data.message);
@@ -213,6 +235,7 @@ function App() {
     setResult(null);
     setIsFlipping(false);
     setLoading(true);
+    triggerHaptic('heavy');
     setActiveTab('home');
     try {
       // Run request and minimum delay in parallel — result shows only after BOTH finish
@@ -281,7 +304,7 @@ function App() {
             {[['home','🎲'],['collection','🎴'],['shop','🛒'],['leaderboard','🏆'],['season','🎯'],['referral','🔗']].map(([tab, icon]) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => { setActiveTab(tab); triggerHaptic('selection'); }}
                 className={`px-2.5 py-1.5 rounded-xl text-sm font-black border transition-all active:scale-95 shadow-lg ${
                   activeTab === tab
                     ? 'bg-blue-500/30 border-blue-500/60 text-blue-300'
@@ -564,11 +587,24 @@ function App() {
                 </div>
 
                 {/* REVEALED STATE (The Result) - Faces Back initially, rotates to Front */}
-                <div 
-                  className={`absolute inset-0 backface-hidden flex flex-col p-3 rounded-[2.5rem] bg-slate-900 border-2 ${result ? getRarityColor(result.rarity) : ''}`}
-                  style={{ transform: 'rotateY(180deg) translateZ(1px)' }}
-                >
-                  <div className="flex-1 rounded-[1.8rem] bg-[#0b1120] flex items-center justify-center overflow-hidden relative shadow-inner">
+                  <div 
+                    className={`absolute inset-0 backface-hidden flex flex-col p-3 rounded-[2.5rem] bg-slate-900 border-2 ${result ? getRarityColor(result.rarity) : ''}`}
+                    style={{ transform: 'rotateY(180deg) translateZ(1px)' }}
+                  >
+                    {/* Visual Polish Elements */}
+                    {result && (
+                      <>
+                        <div className={`rarity-glow ${getRarityColor(result.rarity).split(' ')[0].replace('text-', 'bg-')}`}></div>
+                        {['Legendary', 'Mythic'].includes(result.rarity) && (
+                          <>
+                            <div className="legendary-aura"></div>
+                            <div className="shine-effect animate-shine"></div>
+                          </>
+                        )}
+                      </>
+                    )}
+
+                    <div className="flex-1 rounded-[1.8rem] bg-[#0b1120] flex items-center justify-center overflow-hidden relative shadow-inner">
                     {result && (
                       <>
                         <img src={result.image} alt={result.name} className="w-full h-full object-cover animate-pop-in" style={{ WebkitTransform: 'translateZ(0)' }} />
