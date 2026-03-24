@@ -52,3 +52,76 @@ body {
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+/* 3D Dice Styles */
+.dice-container {
+  width: 60px;
+  height: 60px;
+  perspective: 600px;
+  margin: 0 auto;
+}
+
+.dice {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 1s ease-out;
+}
+
+.dice.rolling {
+  animation: rolling 2s infinite linear;
+}
+
+@keyframes rolling {
+  0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  100% { transform: rotateX(720deg) rotateY(1080deg) rotateZ(360deg); }
+}
+
+.face {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background: white;
+  border: 4px solid #f1f5f9;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: visible;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+}
+
+.face span {
+  width: 8px;
+  height: 8px;
+  background: #1e293b;
+  border-radius: 50%;
+  display: block;
+}
+
+/* Position faces in 3D */
+.front  { transform: rotateY(0deg) translateZ(30px); }
+.back   { transform: rotateY(180deg) translateZ(30px); }
+.right  { transform: rotateY(90deg) translateZ(30px); }
+.left   { transform: rotateY(-90deg) translateZ(30px); }
+.top    { transform: rotateX(90deg) translateZ(30px); }
+.bottom { transform: rotateX(-90deg) translateZ(30px); }
+
+/* Dot patterns for each face */
+.front  { flex-direction: column; } /* 1 dot */
+.back   { flex-wrap: wrap; padding: 6px; gap: 8px; } /* 6 dots */
+.right  { flex-wrap: wrap; padding: 10px; gap: 15px; } /* 3 dots info: use grid for better control if needed */
+.left   { flex-wrap: wrap; padding: 10px; gap: 15px; } /* 4 dots */
+.top    { flex-wrap: wrap; padding: 12px; gap: 8px; } /* 2 dots */
+.bottom { flex-wrap: wrap; padding: 6px; gap: 10px; } /* 5 dots */
+
+/* Specific face dot layouts */
+.face.front span:nth-child(n) { width: 12px; height: 12px; background: #e11d48; } /* Classy red 1 dot */
+
+.face.back { display: grid; grid-template-columns: 1fr 1fr; padding: 8px; gap: 6px; }
+.face.left { display: grid; grid-template-columns: 1fr 1fr; padding: 12px; gap: 12px; }
+.face.top { display: flex; flex-direction: column; justify-content: space-around; padding: 8px; }
+.face.right { display: grid; grid-template-columns: 1fr; justify-items: center; align-content: space-around; padding: 6px; }
+.face.bottom { display: grid; grid-template-columns: 1fr 1fr; padding: 8px; gap: 6px; }
+.face.bottom span:nth-child(5) { grid-column: span 2; justify-self: center; }

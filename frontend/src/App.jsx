@@ -548,8 +548,15 @@ function App() {
                   className="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-6 rounded-[2.5rem] bg-slate-800 border-2 border-slate-700/50 border-dashed"
                   style={{ transform: 'translateZ(1px)' }}
                 >
-                  <div className={`w-20 h-20 rounded-full bg-slate-900 flex items-center justify-center shadow-inner border border-slate-700 ${loading ? 'animate-spin' : 'animate-pulse'}`}>
-                    <span className="text-4xl text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">🎲</span>
+                  <div className="dice-container">
+                    <div className={`dice ${loading ? 'rolling' : ''}`}>
+                      <div className="face front"><span></span></div>
+                      <div className="face back"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                      <div className="face right"><span></span><span></span><span></span></div>
+                      <div className="face left"><span></span><span></span><span></span><span></span></div>
+                      <div className="face top"><span></span><span></span></div>
+                      <div className="face bottom"><span></span><span></span><span></span><span></span><span></span></div>
+                    </div>
                   </div>
                   <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 text-center leading-loose">
                     {loading ? <>Тягнемо<br />картку...</> : <>Очікування<br />результату</>}
