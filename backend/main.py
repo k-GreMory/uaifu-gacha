@@ -140,9 +140,30 @@ app = FastAPI(title="UAIFU Admin API", version="1.0.0")
 # Add session middleware for sqladmin
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
 
-@app.get("/")
-async def root():
-    return {"message": "Animemes Collector API (Phase 2) is running!", "status": "ok"}
+@app.get("/debug/db")
+async def debug_db(db: Session = Depends(get_db)):
+    user_count = db.query(models.User).count()
+    card_count = db.query(models.Card).count()
+    user_card_count = db.query(models.UserCard).count()
+    orphans = db.query(models.UserCard).filter(~models.UserCard.card_id.in_(db.query(models.Card.id))).all()
+    return {
+        "users": user_count,
+        "cards": card_count,
+        "user_cards": user_card_count,
+        "orphans": [o.card_id for o in orphans]
+    }
+
+@app.get("/debug/user/{user_id}")
+async def debug_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        return {"error": "User not found"}
+    cards = db.query(models.UserCard).filter(models.UserCard.user_id == user_id).all()
+    return {
+        "user": {"id": user.id, "username": user.username, "coins": user.coins},
+        "cards_count": len(cards),
+        "card_ids": [c.card_id for c in cards]
+    }
 
 # Enable CORS for frontend
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
