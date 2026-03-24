@@ -45,6 +45,9 @@ class UserCard(Base):
     owner = relationship("User", back_populates="collection")
     card = relationship("Card")
 
+    def __str__(self):
+        return f"{self.card_id} (x{self.duplicates + 1})"
+
 class SpinLog(Base):
     __tablename__ = "spin_logs"
     
@@ -57,6 +60,9 @@ class SpinLog(Base):
     owner = relationship("User")
     card = relationship("Card")
 
+    def __str__(self):
+        return f"Spin {self.id}: {self.card_id} (User {self.user_id})"
+
 class PurchaseLog(Base):
     __tablename__ = "purchase_logs"
     
@@ -66,7 +72,8 @@ class PurchaseLog(Base):
     cost = Column(Integer)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
-    owner = relationship("User")
+    def __str__(self):
+        return f"Purchase {self.id}: {self.item} (Cost {self.cost})"
 
 # --- Referral System ---
 class Referral(Base):
@@ -77,6 +84,9 @@ class Referral(Base):
     invited_id = Column(Integer, ForeignKey("users.id"), unique=True)  # who was invited
     rewarded = Column(Boolean, default=False)  # bonus given?
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    def __str__(self):
+        return f"Referral: {self.referrer_id} -> {self.invited_id}"
 
 # --- Season Pass ---
 class Season(Base):
@@ -90,6 +100,9 @@ class Season(Base):
 
     tasks = relationship("SeasonTask", back_populates="season")
 
+    def __str__(self):
+        return f"Season: {self.name}"
+
 class SeasonTask(Base):
     __tablename__ = "season_tasks"
 
@@ -102,6 +115,9 @@ class SeasonTask(Base):
     reward_energy = Column(Integer, default=0)
 
     season = relationship("Season", back_populates="tasks")
+
+    def __str__(self):
+        return f"Task: {self.title}"
 
 class UserSeasonProgress(Base):
     __tablename__ = "user_season_progress"

@@ -757,31 +757,37 @@ class UserAdmin(ModelView, model=models.User):
     name = "Користувач"
     name_plural = "Користувачі"
     icon = "fa-solid fa-user"
-    column_list = [models.User.id, models.User.username, models.User.first_name, models.User.coins, models.User.energy]
+    column_list = [models.User.id, models.User.username, models.User.first_name, models.User.coins, models.User.energy, models.User.total_spins]
+    search_fields = ["username", "first_name", "id"]
+    inline_models = [models.UserCard]
 
 class CardAdmin(ModelView, model=models.Card):
     name = "Персонаж"
     name_plural = "Персонажі"
     icon = "fa-solid fa-image"
-    column_list = [models.Card.id, models.Card.name, models.Card.rarity]
+    column_list = [models.Card.id, models.Card.name, models.Card.rarity, models.Card.image]
+    search_fields = ["name", "id"]
 
 class UserCardAdmin(ModelView, model=models.UserCard):
     name = "Колекція"
     name_plural = "Колекції"
     icon = "fa-solid fa-box"
-    column_list = [models.UserCard.id, models.UserCard.user_id, models.UserCard.card_id, models.UserCard.duplicates]
+    column_list = [models.UserCard.id, models.UserCard.user_id, models.UserCard.card_id, models.UserCard.duplicates, models.UserCard.acquired_at]
+    search_fields = ["user_id", "card_id"]
 
 class SpinLogAdmin(ModelView, model=models.SpinLog):
     name = "Лог Спінів"
     name_plural = "Логи Спінів"
     icon = "fa-solid fa-list"
-    column_list = [models.SpinLog.id, models.SpinLog.user_id, models.SpinLog.card_id, models.SpinLog.timestamp]
+    column_list = [models.SpinLog.id, models.SpinLog.user_id, models.SpinLog.card_id, models.SpinLog.is_duplicate, models.SpinLog.timestamp]
+    search_fields = ["user_id", "card_id"]
 
 class PurchaseLogAdmin(ModelView, model=models.PurchaseLog):
     name = "Лог Покупок"
     name_plural = "Логи Покупок"
     icon = "fa-solid fa-cart-shopping"
     column_list = [models.PurchaseLog.id, models.PurchaseLog.user_id, models.PurchaseLog.item, models.PurchaseLog.cost, models.PurchaseLog.timestamp]
+    search_fields = ["user_id", "item"]
 
 admin.add_view(UserAdmin)
 admin.add_view(CardAdmin)
