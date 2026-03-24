@@ -21,26 +21,54 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-# Create tables
+# Create tables (creates new ones, doesn't migrate existing ones)
 models.Base.metadata.create_all(bind=engine)
+
+# Manual migration for SQLite since metadata.create_all doesn't add columns
+def migrate_database():
+    db = SessionLocal()
+    try:
+        # Check User table columns
+        from sqlalchemy import text
+        result = db.execute(text("PRAGMA table_info(users)")).fetchall()
+        columns = [row[1] for row in result]
+        
+        # New columns for User model in Phase 2
+        new_cols = [
+            ("total_spins", "INTEGER DEFAULT 0"),
+            ("referred_by", "INTEGER")
+        ]
+        
+        for col_name, col_type in new_cols:
+            if col_name not in columns:
+                print(f"Migrating: Adding column '{col_name}' to 'users' table...")
+                db.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
+                db.commit()
+    except Exception as e:
+        print(f"Migration error: {e}")
+    finally:
+        db.close()
 
 # Auto-seed the database cards table on startup if it is empty
 def seed_database():
     db = SessionLocal()
-    if db.query(models.Card).count() == 0:
-        print("Seeding database with initial cards...")
-        for card_data in CARDS:
-            card = models.Card(
-                id=card_data["id"],
-                name=card_data["name"],
-                rarity=card_data["rarity"],
-                image=card_data["image"],
-                description=card_data.get("description", "")
-            )
-            db.add(card)
-        db.commit()
-    db.close()
+    try:
+        if db.query(models.Card).count() == 0:
+            print("Seeding database with initial cards...")
+            for card_data in CARDS:
+                card = models.Card(
+                    id=card_data["id"],
+                    name=card_data["name"],
+                    rarity=card_data["rarity"],
+                    image=card_data["image"],
+                    description=card_data.get("description", "")
+                )
+                db.add(card)
+            db.commit()
+    finally:
+        db.close()
 
+migrate_database()
 seed_database()
 
 load_dotenv()
