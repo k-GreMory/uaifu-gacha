@@ -18,6 +18,9 @@ class User(Base):
 
     collection = relationship("UserCard", back_populates="owner")
 
+    def __str__(self):
+        return f"{self.username or self.first_name or self.id}"
+
 class Card(Base):
     __tablename__ = "cards"
     id = Column(String, primary_key=True, index=True)
@@ -25,6 +28,9 @@ class Card(Base):
     rarity = Column(String, index=True)
     image = Column(String)
     description = Column(String)
+
+    def __str__(self):
+        return f"{self.name} ({self.id})"
 
 class UserCard(Base):
     __tablename__ = "user_cards"
