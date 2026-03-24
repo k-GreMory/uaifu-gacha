@@ -151,6 +151,13 @@ async def https_middleware(request: Request, call_next):
     response = await call_next(request)
     return response
 
+class UserState(BaseModel):
+    energy: int
+    max_energy: int
+    coins: int
+    next_energy_in_seconds: int
+    total_cards: int = 200
+
 class SpinResult(BaseModel):
     card_id: str
     name: str
@@ -171,13 +178,6 @@ class UserCardInfo(BaseModel):
     image: str
     duplicates: int
     acquired_at: Optional[datetime] = None
-
-class UserState(BaseModel):
-    energy: int
-    max_energy: int
-    coins: int
-    next_energy_in_seconds: int
-    total_cards: int = 200
 
 def update_energy(db: Session, user: models.User):
     now = datetime.now(timezone.utc).replace(tzinfo=None) # Keep tz naive for sqlite
