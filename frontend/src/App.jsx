@@ -2,7 +2,11 @@ import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import './App.css'
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+const PRODUCTION_URL = 'https://uaifu-gacha-production.up.railway.app'
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 
+                    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                     ? 'http://localhost:8000' 
+                     : PRODUCTION_URL)
 
 function App() {
   const [result, setResult] = useState(null)
@@ -16,9 +20,9 @@ function App() {
   const [leaderboard, setLeaderboard] = useState([])
   const [lbMode, setLbMode] = useState('spins')
   const [season, setSeason] = useState(null)
-  const [referralData, setReferralData] = useState(null)
-  const [claimingTask, setClaimingTask] = useState(null)
-  const [fetchingCollection, setFetchingCollection] = useState(false)
+  const [lastError, setLastError] = useState(null)
+  const [debugMode, setDebugMode] = useState(false)
+  const [debugClickCount, setDebugClickCount] = useState(0)
 
   const triggerHaptic = (type = 'light') => {
     const haptic = window.Telegram?.WebApp?.HapticFeedback;
@@ -62,11 +66,14 @@ function App() {
     if (!user) return;
     setFetchingCollection(true);
     try {
+      setLastError(null);
       const response = await axios.get(`${BACKEND_URL}/collection?user_id=${user.id}`);
       setCollection(response.data);
     } catch (error) {
       console.error("Error fetching collection:", error);
-      showToast('Помилка завантаження колекції');
+      const msg = error.response?.data?.detail || error.message || 'Network Error';
+      setLastError(msg);
+      showToast(`Помилка: ${msg}`);
     } finally {
       setFetchingCollection(false);
     }
@@ -445,14 +452,25 @@ function App() {
           <div className="w-full max-w-md animate-fade-in flex-1">
             <div className="flex flex-row justify-between items-center mb-6">
               <div className="flex flex-col">
-                <h2 className="text-xl font-black tracking-tight">ТВОЇ ЗДОБУТКИ</h2>
-                <button 
-                  onClick={fetchCollection} 
-                  disabled={fetchingCollection}
-                  className="text-[8px] font-bold text-blue-500/60 uppercase tracking-tighter text-left mt-0.5 active:text-blue-400"
-                >
-                  {fetchingCollection ? '⚡ СИНХРОНІЗАЦІЯ...' : '⟳ ОНОВИТИ ДАНІ'}
-                </button>
+                <h2 
+                  className="text-xl font-black tracking-tight cursor-pointer active:scale-95"
+                  onClick={() => {
+                    setDebugClickCount(prev => {
+                      if (prev + 1 >= 5) { setDebugMode(true); return 0; }
+                      return prev + 1;
+                    })
+                  }}
+                >ТВОЇ ЗДОБУТКИ</h2>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <button 
+                    onClick={fetchCollection} 
+                    disabled={fetchingCollection}
+                    className="text-[8px] font-bold text-blue-500/60 uppercase tracking-tighter text-left active:text-blue-400"
+                  >
+                    {fetchingCollection ? '⚡ СИНХРОНІЗАЦІЯ...' : '⟳ ОНОВИТИ ДАНІ'}
+                  </button>
+                  {lastError && <span className="text-[7px] text-red-500/80 font-bold animate-pulse">! API ERROR</span>}
+                </div>
               </div>
               <div className="flex flex-col items-end gap-1">
                 <span className="bg-blue-500/10 text-blue-400 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-500/20">
@@ -463,6 +481,19 @@ function App() {
                 </span>
               </div>
             </div>
+
+            {/* Hidden Diagnostic Panel */}
+            {debugMode && (
+              <div className="mb-6 p-3 bg-red-950/40 border border-red-500/30 rounded-2xl text-[10px] font-mono text-red-200 animate-fade-in relative">
+                <button onClick={() => setDebugMode(false)} className="absolute top-2 right-2 text-red-400">✕</button>
+                <div className="mb-1 font-bold">--- DIAGNOSTICS ---</div>
+                <div>URL: <span className="text-cyan-400 break-all">{BACKEND_URL}</span></div>
+                <div>UID: {user?.id}</div>
+                <div>LOCAL_COUNT: {collection.length}</div>
+                <div>LAST_ERR: {lastError || 'none'}</div>
+                <div className="mt-2 text-slate-400 italic">Click "Achievements" title 5 times to show/hide.</div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3 pb-20">
               {sortedCollection.map((card, idx) => (
                 <div key={idx} className="bg-slate-800/60 backdrop-blur-sm p-2 rounded-2xl border border-slate-700/50 overflow-hidden relative group">
