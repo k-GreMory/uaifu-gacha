@@ -91,13 +91,16 @@ def reconcile_card_duplicates():
     finally:
         db.close()
 
-# Auto-seed the database cards table on startup if it is empty
-def seed_database():
+# Auto-sync the database cards table on startup
+def sync_database():
     db = SessionLocal()
     try:
-        if db.query(models.Card).count() == 0:
-            print("Seeding database with initial cards...")
-            for card_data in CARDS:
+        existing_ids = {c.id for c in db.query(models.Card).all()}
+        new_count = 0
+        updated_count = 0
+        
+        for card_data in CARDS:
+            if card_data["id"] not in existing_ids:
                 card = models.Card(
                     id=card_data["id"],
                     name=card_data["name"],
@@ -106,13 +109,26 @@ def seed_database():
                     description=card_data.get("description", "")
                 )
                 db.add(card)
-            db.commit()
+                new_count += 1
+            else:
+                # Update existing card to ensure name/rarity/image stay in sync with CARDS
+                db.query(models.Card).filter(models.Card.id == card_data["id"]).update({
+                    "name": card_data["name"],
+                    "rarity": card_data["rarity"],
+                    "image": card_data["image"],
+                    "description": card_data.get("description", "")
+                })
+                updated_count += 1
+        
+        db.commit()
+        if new_count > 0 or updated_count > 0:
+            print(f"Database Sync: {new_count} new cards added, {updated_count} cards updated.")
     finally:
         db.close()
 
 migrate_database()
+sync_database() # Ensure all NEW IDs exist before consolidation renames anything to them
 reconcile_card_duplicates()
-seed_database()
 
 load_dotenv()
 
