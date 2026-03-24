@@ -137,10 +137,11 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = FastAPI(title="UAIFU Admin API", version="1.0.0")
 
-@app.get("/debug/users")
-async def debug_users(db: Session = Depends(get_db)):
-    users = db.query(models.User).all()
-    return [{"id": u.id, "username": u.username, "first_name": u.first_name, "coins": u.coins} for u in users]
+@app.get("/debug/log-users")
+async def debug_log_users(db: Session = Depends(get_db)):
+    from sqlalchemy import func
+    counts = db.query(models.SpinLog.user_id, func.count(models.SpinLog.id)).group_by(models.SpinLog.user_id).all()
+    return [{"user_id": uid, "count": count} for uid, count in counts]
 
 # Enable CORS for frontend
 app.add_middleware(
