@@ -166,14 +166,11 @@ async def debug_user(user_id: int, db: Session = Depends(get_db)):
     }
 
 # Enable CORS for frontend
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
-_origins = [o.strip() for o in _raw_origins.split(",")]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_origins=["*"],
+    allow_credentials=False, # Set to False to allow "*" origin if headers/query params are used instead of cookies
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
