@@ -161,9 +161,8 @@ class SpinResult(BaseModel):
     is_new: bool = False
     new_level: int = 0
     
-    # Fast UI updates without needing a separate /user fetch
-    user_energy: int
-    user_coins: int
+    # Full UI state for perfect sync
+    user_stats: UserState
 
 class UserCardInfo(BaseModel):
     card_id: str
@@ -198,6 +197,22 @@ def update_energy(db: Session, user: models.User):
         db.commit()
     return user
 
+def get_user_state(db: Session, user: models.User):
+    next_energy = 0
+    if user.energy < user.max_energy:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        elapsed = (now - user.last_energy_update).total_seconds()
+        next_energy = max(0, int((10 * 60) - elapsed))
+        
+    total_cards = db.query(models.Card).count()
+    return {
+        "energy": user.energy,
+        "max_energy": user.max_energy,
+        "coins": user.coins,
+        "next_energy_in_seconds": next_energy,
+        "total_cards": total_cards
+    }
+
 def get_or_create_user(db: Session, user_id: int, username: Optional[str] = None, first_name: Optional[str] = None):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -224,22 +239,7 @@ def get_or_create_user(db: Session, user_id: int, username: Optional[str] = None
 @app.get("/user", response_model=UserState)
 async def get_user(user_id: int, username: Optional[str] = None, first_name: Optional[str] = None, db: Session = Depends(get_db)):
     user = get_or_create_user(db, user_id, username=username, first_name=first_name)
-    
-    next_energy = 0
-    if user.energy < user.max_energy:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        elapsed = (now - user.last_energy_update).total_seconds()
-        next_energy = max(0, int((10 * 60) - elapsed))
-        
-    total_cards = db.query(models.Card).count()
-        
-    return {
-        "energy": user.energy,
-        "max_energy": user.max_energy,
-        "coins": user.coins,
-        "next_energy_in_seconds": next_energy,
-        "total_cards": total_cards
-    }
+    return get_user_state(db, user)
 
 @app.get("/spin", response_model=SpinResult)
 async def spin(user_id: int, db: Session = Depends(get_db)):
@@ -319,8 +319,7 @@ async def spin(user_id: int, db: Session = Depends(get_db)):
         "is_gold": is_gold,
         "is_new": not is_duplicate,
         "new_level": new_lvl,
-        "user_energy": user.energy,
-        "user_coins": user.coins
+        "user_stats": get_user_state(db, user)
     }
 
 @app.post("/buy_energy")
@@ -340,8 +339,7 @@ async def buy_energy(user_id: int, db: Session = Depends(get_db)):
     return {
         "success": True,
         "message": "Придбано 1 Енергію ⚡",
-        "energy": user.energy,
-        "coins": user.coins
+        "user_stats": get_user_state(db, user)
     }
 
 @app.get("/premium_spin", response_model=SpinResult)
@@ -420,8 +418,7 @@ async def premium_spin(user_id: int, db: Session = Depends(get_db)):
         "is_gold": is_gold,
         "is_new": not is_duplicate,
         "new_level": new_lvl,
-        "user_energy": user.energy,
-        "user_coins": user.coins
+        "user_stats": get_user_state(db, user)
     }
 
 @app.get("/collection", response_model=List[UserCardInfo])
@@ -689,8 +686,7 @@ async def claim_season_reward(user_id: int, task_id: int, db: Session = Depends(
     return {
         "success": True,
         "message": f"Нагорода отримана! +{task.reward_coins} 🪙 +{task.reward_energy} ⚡",
-        "coins": user.coins,
-        "energy": user.energy
+        "user_stats": get_user_state(db, user)
     }
 
 # --- Admin Section ---
