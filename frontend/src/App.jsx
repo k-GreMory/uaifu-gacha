@@ -86,7 +86,12 @@ function App() {
   const fetchUserStats = async () => {
     if (!user) return;
     try {
-      const response = await axios.get(`${BACKEND_URL}/user?user_id=${user.id}`)
+      const params = new URLSearchParams({
+        user_id: user.id,
+        username: user.username || '',
+        first_name: user.first_name || ''
+      });
+      const response = await axios.get(`${BACKEND_URL}/user?${params.toString()}`)
       setUserStats(response.data)
     } catch (error) {
       console.error("Error fetching user stats:", error)

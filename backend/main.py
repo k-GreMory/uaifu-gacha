@@ -206,12 +206,24 @@ def get_or_create_user(db: Session, user_id: int, username: Optional[str] = None
         db.commit()
         db.refresh(user)
     else:
+        # Always update name/username from TG if available (Phase 36: Sync Nicknames)
+        needs_update = False
+        if username and user.username != username:
+            user.username = username
+            needs_update = True
+        if first_name and user.first_name != first_name:
+            user.first_name = first_name
+            needs_update = True
+        
         user = update_energy(db, user)
+        if needs_update:
+            db.commit()
+            db.refresh(user)
     return user
 
 @app.get("/user", response_model=UserState)
-async def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = get_or_create_user(db, user_id)
+async def get_user(user_id: int, username: Optional[str] = None, first_name: Optional[str] = None, db: Session = Depends(get_db)):
+    user = get_or_create_user(db, user_id, username=username, first_name=first_name)
     
     next_energy = 0
     if user.energy < user.max_energy:
