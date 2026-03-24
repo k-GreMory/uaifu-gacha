@@ -759,7 +759,6 @@ class UserAdmin(ModelView, model=models.User):
     icon = "fa-solid fa-user"
     column_list = ["id", "username", "first_name", "coins", "energy", "total_spins"]
     search_fields = ["username", "first_name", "id"]
-    column_filters = [models.User.coins, models.User.energy]
 
 class CardAdmin(ModelView, model=models.Card):
     name = "Персонаж"
@@ -767,7 +766,6 @@ class CardAdmin(ModelView, model=models.Card):
     icon = "fa-solid fa-image"
     column_list = ["id", "name", "rarity", "image"]
     search_fields = ["name", "id"]
-    column_filters = [models.Card.rarity]
 
 class UserCardAdmin(ModelView, model=models.UserCard):
     name = "Колекція"
@@ -775,7 +773,6 @@ class UserCardAdmin(ModelView, model=models.UserCard):
     icon = "fa-solid fa-box"
     column_list = ["id", "user_id", "card_id", "duplicates", "acquired_at"]
     search_fields = ["user_id", "card_id"]
-    column_filters = [models.UserCard.acquired_at]
 
 class SpinLogAdmin(ModelView, model=models.SpinLog):
     name = "Лог Спінів"
@@ -783,7 +780,6 @@ class SpinLogAdmin(ModelView, model=models.SpinLog):
     icon = "fa-solid fa-list"
     column_list = ["id", "user_id", "card_id", "is_duplicate", "timestamp"]
     search_fields = ["user_id", "card_id"]
-    column_filters = [models.SpinLog.is_duplicate, models.SpinLog.timestamp]
 
 class PurchaseLogAdmin(ModelView, model=models.PurchaseLog):
     name = "Лог Покупок"
@@ -791,7 +787,6 @@ class PurchaseLogAdmin(ModelView, model=models.PurchaseLog):
     icon = "fa-solid fa-cart-shopping"
     column_list = ["id", "user_id", "item", "cost", "timestamp"]
     search_fields = ["user_id", "item"]
-    column_filters = [models.PurchaseLog.item, models.PurchaseLog.timestamp]
 
 admin.add_view(UserAdmin)
 admin.add_view(CardAdmin)
