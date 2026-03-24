@@ -757,26 +757,41 @@ class UserAdmin(ModelView, model=models.User):
     name = "Користувач"
     name_plural = "Користувачі"
     icon = "fa-solid fa-user"
+    column_list = [models.User.id, models.User.username, models.User.first_name, models.User.coins, models.User.energy, models.User.total_spins]
+    search_fields = [models.User.username, models.User.first_name, models.User.id]
+    column_filters = [models.User.coins, models.User.energy]
 
 class CardAdmin(ModelView, model=models.Card):
     name = "Персонаж"
     name_plural = "Персонажі"
     icon = "fa-solid fa-image"
+    column_list = [models.Card.id, models.Card.name, models.Card.rarity, models.Card.image]
+    search_fields = [models.Card.name, models.Card.id]
+    column_filters = [models.Card.rarity]
 
 class UserCardAdmin(ModelView, model=models.UserCard):
     name = "Колекція"
     name_plural = "Колекції"
     icon = "fa-solid fa-box"
+    column_list = [models.UserCard.id, models.UserCard.user_id, models.UserCard.card_id, models.UserCard.duplicates, models.UserCard.acquired_at]
+    search_fields = [models.UserCard.user_id, models.UserCard.card_id]
+    column_filters = [models.UserCard.acquired_at]
 
 class SpinLogAdmin(ModelView, model=models.SpinLog):
     name = "Лог Спінів"
     name_plural = "Логи Спінів"
     icon = "fa-solid fa-list"
+    column_list = [models.SpinLog.id, models.SpinLog.user_id, models.SpinLog.card_id, models.SpinLog.is_duplicate, models.SpinLog.created_at]
+    search_fields = [models.SpinLog.user_id, models.SpinLog.card_id]
+    column_filters = [models.SpinLog.is_duplicate, models.SpinLog.created_at]
 
 class PurchaseLogAdmin(ModelView, model=models.PurchaseLog):
     name = "Лог Покупок"
     name_plural = "Логи Покупок"
     icon = "fa-solid fa-cart-shopping"
+    column_list = [models.PurchaseLog.id, models.PurchaseLog.user_id, models.PurchaseLog.item, models.PurchaseLog.cost, models.PurchaseLog.created_at]
+    search_fields = [models.PurchaseLog.user_id, models.PurchaseLog.item]
+    column_filters = [models.PurchaseLog.item, models.PurchaseLog.created_at]
 
 admin.add_view(UserAdmin)
 admin.add_view(CardAdmin)
