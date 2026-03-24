@@ -140,18 +140,11 @@ app = FastAPI(title="UAIFU Admin API", version="1.0.0")
 # Add session middleware for sqladmin
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
 
-@app.get("/debug/db")
-async def debug_db(db: Session = Depends(get_db)):
-    user_count = db.query(models.User).count()
-    card_count = db.query(models.Card).count()
-    user_card_count = db.query(models.UserCard).count()
-    orphans = db.query(models.UserCard).filter(~models.UserCard.card_id.in_(db.query(models.Card.id))).all()
-    return {
-        "users": user_count,
-        "cards": card_count,
-        "user_cards": user_card_count,
-        "orphans": [o.card_id for o in orphans]
-    }
+@app.get("/debug/raw-user-cards")
+async def debug_raw_user_cards(db: Session = Depends(get_db)):
+    from sqlalchemy import func
+    counts = db.query(models.UserCard.user_id, func.count(models.UserCard.id)).group_by(models.UserCard.user_id).all()
+    return [{"user_id": uid, "count": count} for uid, count in counts]
 
 @app.get("/debug/user/{user_id}")
 async def debug_user(user_id: int, db: Session = Depends(get_db)):
