@@ -10,10 +10,14 @@ function App() {
   const [user, setUser] = useState(null)
   const [userStats, setUserStats] = useState({ energy: 0, max_energy: 20, coins: 0, next_energy_in_seconds: 0, total_cards: 200 })
   const [collection, setCollection] = useState([])
-  const [showCollection, setShowCollection] = useState(false)
-  const [showShop, setShowShop] = useState(false)
+  const [activeTab, setActiveTab] = useState('home') // home | collection | shop | leaderboard | season | referral
   const [isFlipping, setIsFlipping] = useState(false)
   const [toast, setToast] = useState(null)
+  const [leaderboard, setLeaderboard] = useState([])
+  const [lbMode, setLbMode] = useState('spins')
+  const [season, setSeason] = useState(null)
+  const [referralData, setReferralData] = useState(null)
+  const [claimingTask, setClaimingTask] = useState(null)
 
   const showToast = (message) => {
     setToast(message);
@@ -43,6 +47,42 @@ function App() {
     }
   }
 
+  const fetchLeaderboard = async (mode = lbMode) => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/leaderboard?mode=${mode}`)
+      setLeaderboard(res.data)
+    } catch (e) { console.error(e) }
+  }
+
+  const fetchSeason = async (uid) => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/season?user_id=${uid}`)
+      setSeason(res.data)
+    } catch (e) { console.error(e) }
+  }
+
+  const fetchReferral = async (uid) => {
+    try {
+      const res = await axios.get(`${BACKEND_URL}/referral/link?user_id=${uid}`)
+      setReferralData(res.data)
+    } catch (e) { console.error(e) }
+  }
+
+  const claimSeasonTask = async (taskId) => {
+    if (!user) return;
+    setClaimingTask(taskId);
+    try {
+      const res = await axios.post(`${BACKEND_URL}/season/claim?user_id=${user.id}&task_id=${taskId}`)
+      showToast(res.data.message)
+      setUserStats(prev => ({ ...prev, coins: res.data.coins, energy: res.data.energy }))
+      fetchSeason(user.id)
+    } catch (e) {
+      showToast(e.response?.data?.detail || 'Помилка')
+    } finally {
+      setClaimingTask(null)
+    }
+  }
+
   const fetchUserStats = async () => {
     if (!user) return;
     try {
@@ -54,14 +94,26 @@ function App() {
   }
 
   useEffect(() => {
-    if (showCollection) {
-      fetchCollection()
-    }
-  }, [showCollection, user])
+    if (activeTab === 'collection') fetchCollection()
+    if (activeTab === 'leaderboard') fetchLeaderboard(lbMode)
+    if (activeTab === 'season' && user) fetchSeason(user.id)
+    if (activeTab === 'referral' && user) fetchReferral(user.id)
+  }, [activeTab, user])
 
   useEffect(() => {
     if (user) {
       fetchUserStats()
+      // Check for referral in start param
+      const tg = window.Telegram?.WebApp;
+      const startParam = tg?.initDataUnsafe?.start_param || '';
+      if (startParam.startsWith('ref_')) {
+        const refId = parseInt(startParam.replace('ref_', ''), 10);
+        if (refId && refId !== user.id) {
+          axios.post(`${BACKEND_URL}/referral/claim?user_id=${user.id}&ref_id=${refId}`)
+            .then(r => showToast(r.data.message))
+            .catch(() => {}); // silently fail if already referred
+        }
+      }
     }
   }, [user])
 
@@ -220,24 +272,23 @@ function App() {
           <h1 className="text-2xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 drop-shadow-sm pr-2">
             UAIFU
           </h1>
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setShowShop(!showShop); setShowCollection(false); }}
-              className={`backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black border transition-all active:scale-95 shadow-lg flex items-center gap-2 ${showShop ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700'}`}
-            >
-              {showShop ? '🔙 НАЗАД' : '🛒 МАГАЗИН'}
-            </button>
-            <button
-              onClick={() => { setShowCollection(!showCollection); setShowShop(false); }}
-              className={`backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black border transition-all active:scale-95 shadow-lg flex items-center gap-2 ${showCollection ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700'}`}
-            >
-              {showCollection ? '🔙 НАЗАД' : '🎴 КОЛЕКЦІЯ'}
-            </button>
+          <div className="flex gap-1.5">
+            {[['home','🎲'],['collection','🎴'],['shop','🛒'],['leaderboard','🏆'],['season','🎯'],['referral','🔗']].map(([tab, icon]) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-2.5 py-1.5 rounded-xl text-sm font-black border transition-all active:scale-95 shadow-lg ${
+                  activeTab === tab
+                    ? 'bg-blue-500/30 border-blue-500/60 text-blue-300'
+                    : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700'
+                }`}
+              >{icon}</button>
+            ))}
           </div>
         </header>
 
         {/* Top Stats Bar */}
-        {!showCollection && !showShop && (
+        {activeTab === 'home' && (
           <div className="w-full max-w-md flex gap-2 mb-3">
             <div className="flex-1 bg-slate-800/40 border border-slate-700/50 p-1.5 px-3 rounded-xl flex items-center justify-between">
               <span className="text-[9px] font-bold text-slate-400">ЕНЕРГІЯ</span>
@@ -254,13 +305,13 @@ function App() {
           </div>
         )}
 
-        {user && !showCollection && !showShop && !result && (
+        {user && activeTab === 'home' && !result && (
           <div className="mb-2 text-slate-400 text-[10px] animate-fade-in text-center font-medium">
             Вітаємо, <span className="text-blue-400 font-bold">{user.first_name || 'Player'}</span>!
           </div>
         )}
 
-        {showShop ? (
+        {activeTab === 'shop' ? (
           <div className="w-full max-w-md animate-fade-in flex-1 flex flex-col items-center py-4">
             <h2 className="text-2xl font-black tracking-tight mb-1 text-yellow-400 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">ЧОРНИЙ РИНОК</h2>
             <p className="text-xs text-slate-400 mb-6 text-center">Витрать свої монети на найцінніші ресурси.</p>
@@ -316,7 +367,7 @@ function App() {
             </div>
             
           </div>
-        ) : showCollection ? (
+        ) : activeTab === 'collection' ? (
           <div className="w-full max-w-md animate-fade-in flex-1">
             <div className="flex flex-row justify-between items-center mb-6">
               <h2 className="text-xl font-black tracking-tight">ТВОЇ ЗДОБУТКИ</h2>
@@ -357,6 +408,127 @@ function App() {
               )}
             </div>
           </div>
+        ) : activeTab === 'leaderboard' ? (
+          <div className="w-full max-w-md animate-fade-in flex-1">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-black tracking-tight">🏆 ЛІДЕРБОРД</h2>
+              <div className="flex gap-2">
+                {[['spins','Спіни'],['cards','Картки']].map(([m, label]) => (
+                  <button key={m} onClick={() => { setLbMode(m); fetchLeaderboard(m); }}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all ${
+                      lbMode === m ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' : 'bg-slate-800/50 border-slate-700 text-slate-400'
+                    }`}>{label}</button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 pb-20">
+              {leaderboard.map((row) => (
+                <div key={row.rank} className={`flex items-center gap-3 p-3 rounded-2xl border ${
+                  row.rank === 1 ? 'bg-yellow-500/10 border-yellow-500/30' :
+                  row.rank === 2 ? 'bg-slate-400/10 border-slate-400/30' :
+                  row.rank === 3 ? 'bg-amber-700/10 border-amber-700/30' :
+                  'bg-slate-800/40 border-slate-700/50'
+                }`}>
+                  <span className={`text-lg font-black w-8 text-center ${
+                    row.rank === 1 ? 'text-yellow-400' : row.rank === 2 ? 'text-slate-300' : row.rank === 3 ? 'text-amber-600' : 'text-slate-500'
+                  }`}>{row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : `#${row.rank}`}</span>
+                  <div className="flex-1">
+                    <div className="font-bold text-sm truncate">{row.name}</div>
+                    <div className="text-[10px] text-slate-400">{row.score} {row.label}</div>
+                  </div>
+                  {row.user_id === user?.id && (
+                    <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">ТИ</span>
+                  )}
+                </div>
+              ))}
+              {leaderboard.length === 0 && (
+                <div className="text-center opacity-40 py-20">Ще немає даних. Крути карти! 🎲</div>
+              )}
+            </div>
+          </div>
+
+        ) : activeTab === 'season' ? (
+          <div className="w-full max-w-md animate-fade-in flex-1">
+            {season?.active ? (
+              <>
+                <div className="flex justify-between items-center mb-1">
+                  <h2 className="text-xl font-black tracking-tight">🎯 {season.season_name}</h2>
+                </div>
+                <div className="text-[10px] text-slate-400 mb-4">Залишилось днів: <span className="text-cyan-400 font-bold">{season.days_left}</span></div>
+                <div className="flex flex-col gap-3 pb-20">
+                  {season.tasks.map(task => (
+                    <div key={task.id} className={`p-3 rounded-2xl border ${
+                      task.claimed ? 'bg-emerald-900/20 border-emerald-500/30 opacity-60' :
+                      task.completed ? 'bg-blue-900/20 border-blue-500/30' :
+                      'bg-slate-800/40 border-slate-700/50'
+                    }`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-bold text-sm">{task.title}</div>
+                        <div className="text-[10px] text-slate-400 text-right whitespace-nowrap ml-2">
+                          {task.reward_coins > 0 && <span>+{task.reward_coins}🪙 </span>}
+                          {task.reward_energy > 0 && <span>+{task.reward_energy}⚡</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-slate-900/60 rounded-full h-2 overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${Math.min(100, (task.progress / task.target) * 100)}%` }} />
+                        </div>
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap">{task.progress}/{task.target}</span>
+                        {task.claimed ? (
+                          <span className="text-[10px] text-emerald-400 font-black">✓</span>
+                        ) : task.completed ? (
+                          <button
+                            onClick={() => claimSeasonTask(task.id)}
+                            disabled={claimingTask === task.id}
+                            className="px-3 py-1 rounded-lg bg-emerald-500 text-black text-[10px] font-black active:scale-95 transition-all"
+                          >Забрати</button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center opacity-40 py-20">
+                <div className="text-4xl mb-4">⏳</div>
+                <div>Зараз немає активного сезону</div>
+              </div>
+            )}
+          </div>
+
+        ) : activeTab === 'referral' ? (
+          <div className="w-full max-w-md animate-fade-in flex-1">
+            <h2 className="text-xl font-black tracking-tight mb-4">🔗 РЕФЕРАЛЬНА ПРОГРАМА</h2>
+            <div className="bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl mb-4">
+              <div className="text-sm text-slate-300 mb-2">Запроси друга → обидва отримаєте бонуси!</div>
+              <div className="flex flex-col gap-1 text-xs text-slate-400">
+                <div>👤 Ти: <span className="text-emerald-400 font-bold">+5⚡ +500🪙</span></div>
+                <div>🆕 Друг: <span className="text-cyan-400 font-bold">+3⚡ +200🪙</span></div>
+              </div>
+            </div>
+            {referralData && (
+              <>
+                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-3 mb-3 font-mono text-[11px] text-cyan-300 break-all">
+                  {referralData.link}
+                </div>
+                <div className="flex gap-2 mb-6">
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(referralData.link); showToast('Посилання скопійовано!'); }}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-black text-xs active:scale-95 transition-all"
+                  >📋 Копіювати</button>
+                  <button
+                    onClick={() => { const tg = window.Telegram?.WebApp; if (tg) tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralData.link)}&text=${encodeURIComponent('Грай зі мною в UAIFU Gacha! 🎲')}`); }}
+                    className="flex-1 py-2.5 rounded-xl bg-purple-600 text-white font-black text-xs active:scale-95 transition-all"
+                  >📤 Поділитись</button>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-black text-yellow-400">{referralData.ref_count}</div>
+                  <div className="text-[10px] text-slate-400">запрошених друзів</div>
+                </div>
+              </>
+            )}
+          </div>
+
         ) : (
           <div className="w-full max-w-md flex flex-col items-center flex-1 justify-center py-4">
             {/* Main Card Slot - 3D Container */}

@@ -168,6 +168,7 @@ async def spin(user_id: int, db: Session = Depends(get_db)):
         
     # Deduct energy
     user.energy -= 1
+    user.total_spins = (user.total_spins or 0) + 1
     
     # 2. Logic for rarity
     total_chance = sum(RARITY_CHANCES.values())
@@ -268,6 +269,7 @@ async def premium_spin(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Недостатньо монет! Потрібно 10,000 🪙")
         
     user.coins -= 10000
+    user.total_spins = (user.total_spins or 0) + 1
     
     # Premium Logic: Cut out Common and UnCommon entirely
     premium_chances = {"Rare": 600, "Epic": 300, "Legendary": 90, "Mythic": 10}
@@ -357,7 +359,259 @@ async def get_collection(user_id: int, db: Session = Depends(get_db)):
             })
     return result
 
+# --- Leaderboard ---
+
+@app.get("/leaderboard")
+async def get_leaderboard(mode: str = "spins", db: Session = Depends(get_db)):
+    """Returns top-15 players. mode=spins or mode=cards"""
+    if mode == "cards":
+        from sqlalchemy import distinct
+        rows = (
+            db.query(models.User, func.count(distinct(models.UserCard.card_id)).label("score"))
+            .join(models.UserCard, models.UserCard.user_id == models.User.id, isouter=True)
+            .group_by(models.User.id)
+            .order_by(func.count(distinct(models.UserCard.card_id)).desc())
+            .limit(15)
+            .all()
+        )
+        return [
+            {
+                "rank": i + 1,
+                "user_id": u.id,
+                "name": u.first_name or u.username or "Гравець",
+                "score": score,
+                "label": "карток"
+            }
+            for i, (u, score) in enumerate(rows)
+        ]
+    else:  # spins
+        rows = (
+            db.query(models.User)
+            .order_by(models.User.total_spins.desc())
+            .limit(15)
+            .all()
+        )
+        return [
+            {
+                "rank": i + 1,
+                "user_id": u.id,
+                "name": u.first_name or u.username or "Гравець",
+                "score": u.total_spins,
+                "label": "спінів"
+            }
+            for i, u in enumerate(rows)
+        ]
+
+# --- Referral System ---
+
+@app.get("/referral/link")
+async def get_referral_link(user_id: int, db: Session = Depends(get_db)):
+    user = get_or_create_user(db, user_id)
+    bot_name = os.getenv("BOT_NAME", "uaifu_bot")
+    link = f"https://t.me/{bot_name}?start=ref_{user.id}"
+    
+    # Count how many people this user has referred
+    ref_count = db.query(models.Referral).filter(models.Referral.referrer_id == user_id).count()
+    
+    return {
+        "link": link,
+        "ref_count": ref_count,
+        "reward_per_ref": "5 енергії + 500 монет"
+    }
+
+@app.post("/referral/claim")
+async def claim_referral(user_id: int, ref_id: int, db: Session = Depends(get_db)):
+    """Called when a new user joins via referral link (ref_id = who invited them)"""
+    if user_id == ref_id:
+        raise HTTPException(status_code=400, detail="Не можна запросити самого себе 🙃")
+    
+    # Check if already referred
+    existing = db.query(models.Referral).filter(models.Referral.invited_id == user_id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Реферал вже зареєстровано")
+    
+    # Make sure both users exist
+    new_user = get_or_create_user(db, user_id)
+    referrer = db.query(models.User).filter(models.User.id == ref_id).first()
+    if not referrer:
+        raise HTTPException(status_code=404, detail="Запрошувач не знайдений")
+    
+    # Record referral
+    referral = models.Referral(referrer_id=ref_id, invited_id=user_id, rewarded=True)
+    db.add(referral)
+    
+    # Reward both parties
+    referrer.energy = min(referrer.max_energy, referrer.energy + 5)
+    referrer.coins += 500
+    new_user.energy = min(new_user.max_energy, new_user.energy + 3)
+    new_user.coins += 200
+    new_user.referred_by = ref_id
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Реферал зараховано! Обом нараховано бонуси 🎉",
+        "referrer_bonus": "+5 енергії, +500 монет",
+        "new_user_bonus": "+3 енергії, +200 монет"
+    }
+
+# --- Season Pass ---
+
+def get_active_season(db: Session) -> Optional[models.Season]:
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    return db.query(models.Season).filter(
+        models.Season.is_active == True,
+        models.Season.start_date <= now,
+        models.Season.end_date >= now
+    ).first()
+
+def ensure_season_exists(db: Session):
+    """Auto-create a season if none exists"""
+    season = db.query(models.Season).filter(models.Season.is_active == True).first()
+    if not season:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        season = models.Season(
+            name="Сезон 1: Весна Вайфу 🌸",
+            start_date=now,
+            end_date=now + timedelta(days=30),
+            is_active=True
+        )
+        db.add(season)
+        db.flush()
+        
+        # Default tasks
+        tasks = [
+            models.SeasonTask(season_id=season.id, title="Перший спін", task_type="spins", target=1, reward_coins=100, reward_energy=0),
+            models.SeasonTask(season_id=season.id, title="Зроби 10 спінів", task_type="spins", target=10, reward_coins=500, reward_energy=2),
+            models.SeasonTask(season_id=season.id, title="Зроби 50 спінів", task_type="spins", target=50, reward_coins=2000, reward_energy=5),
+            models.SeasonTask(season_id=season.id, title="Зроби 100 спінів", task_type="spins", target=100, reward_coins=5000, reward_energy=10),
+            models.SeasonTask(season_id=season.id, title="Зберіть 5 унікальних карток", task_type="unique_cards", target=5, reward_coins=300, reward_energy=1),
+            models.SeasonTask(season_id=season.id, title="Зберіть 25 унікальних карток", task_type="unique_cards", target=25, reward_coins=1500, reward_energy=3),
+            models.SeasonTask(season_id=season.id, title="Зберіть 50 унікальних карток", task_type="unique_cards", target=50, reward_coins=3000, reward_energy=5),
+            models.SeasonTask(season_id=season.id, title="Зробіть 1 преміум спін", task_type="premium_spins", target=1, reward_coins=1000, reward_energy=2),
+        ]
+        db.add_all(tasks)
+        db.commit()
+        db.refresh(season)
+    return season
+
+@app.get("/season")
+async def get_season(user_id: int, db: Session = Depends(get_db)):
+    ensure_season_exists(db)
+    season = get_active_season(db)
+    if not season:
+        return {"active": False, "message": "Зараз немає активного сезону"}
+    
+    user = get_or_create_user(db, user_id)
+    unique_cards = db.query(func.count(models.UserCard.id)).filter(models.UserCard.user_id == user_id).scalar() or 0
+    premium_spins = db.query(func.count(models.PurchaseLog.id)).filter(
+        models.PurchaseLog.user_id == user_id,
+        models.PurchaseLog.item == "premium_spin"
+    ).scalar() or 0
+
+    tasks_out = []
+    for task in season.tasks:
+        # Get or calculate progress
+        progress_row = db.query(models.UserSeasonProgress).filter(
+            models.UserSeasonProgress.user_id == user_id,
+            models.UserSeasonProgress.task_id == task.id
+        ).first()
+        
+        # Calculate current progress from live data
+        if task.task_type == "spins":
+            current = user.total_spins
+        elif task.task_type == "unique_cards":
+            current = unique_cards
+        elif task.task_type == "premium_spins":
+            current = premium_spins
+        else:
+            current = 0
+        
+        claimed = progress_row.claimed if progress_row else False
+        
+        tasks_out.append({
+            "id": task.id,
+            "title": task.title,
+            "task_type": task.task_type,
+            "target": task.target,
+            "progress": min(current, task.target),
+            "completed": current >= task.target,
+            "claimed": claimed,
+            "reward_coins": task.reward_coins,
+            "reward_energy": task.reward_energy,
+        })
+    
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    days_left = max(0, (season.end_date - now).days)
+    
+    return {
+        "active": True,
+        "season_name": season.name,
+        "days_left": days_left,
+        "tasks": tasks_out
+    }
+
+@app.post("/season/claim")
+async def claim_season_reward(user_id: int, task_id: int, db: Session = Depends(get_db)):
+    task = db.query(models.SeasonTask).filter(models.SeasonTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не знайдена")
+    
+    user = get_or_create_user(db, user_id)
+    unique_cards = db.query(func.count(models.UserCard.id)).filter(models.UserCard.user_id == user_id).scalar() or 0
+    premium_spins = db.query(func.count(models.PurchaseLog.id)).filter(
+        models.PurchaseLog.user_id == user_id,
+        models.PurchaseLog.item == "premium_spin"
+    ).scalar() or 0
+    
+    if task.task_type == "spins":
+        current = user.total_spins
+    elif task.task_type == "unique_cards":
+        current = unique_cards
+    elif task.task_type == "premium_spins":
+        current = premium_spins
+    else:
+        current = 0
+    
+    if current < task.target:
+        raise HTTPException(status_code=400, detail=f"Задача ще не виконана ({current}/{task.target})")
+    
+    # Check if already claimed
+    progress_row = db.query(models.UserSeasonProgress).filter(
+        models.UserSeasonProgress.user_id == user_id,
+        models.UserSeasonProgress.task_id == task_id
+    ).first()
+    
+    if progress_row and progress_row.claimed:
+        raise HTTPException(status_code=400, detail="Нагорода вже отримана!")
+    
+    # Mark claimed and give reward
+    if not progress_row:
+        progress_row = models.UserSeasonProgress(
+            user_id=user_id, task_id=task_id, progress=current, claimed=True,
+            claimed_at=datetime.now(timezone.utc).replace(tzinfo=None)
+        )
+        db.add(progress_row)
+    else:
+        progress_row.claimed = True
+        progress_row.claimed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    
+    user.coins += task.reward_coins
+    if task.reward_energy > 0:
+        user.energy = min(user.max_energy, user.energy + task.reward_energy)
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Нагорода отримана! +{task.reward_coins} 🪙 +{task.reward_energy} ⚡",
+        "coins": user.coins,
+        "energy": user.energy
+    }
+
 # --- Admin Section ---
+
 
 class AdminAuth(AuthenticationBackend):
     async def login(self, request: Request) -> bool:

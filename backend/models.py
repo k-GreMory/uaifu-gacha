@@ -13,6 +13,8 @@ class User(Base):
     max_energy = Column(Integer, default=20)
     coins = Column(Integer, default=0)
     last_energy_update = Column(DateTime, default=datetime.datetime.utcnow)
+    total_spins = Column(Integer, default=0)  # For leaderboard
+    referred_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     collection = relationship("UserCard", back_populates="owner")
 
@@ -59,3 +61,51 @@ class PurchaseLog(Base):
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
     owner = relationship("User")
+
+# --- Referral System ---
+class Referral(Base):
+    __tablename__ = "referrals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    referrer_id = Column(Integer, ForeignKey("users.id"), index=True)  # who invited
+    invited_id = Column(Integer, ForeignKey("users.id"), unique=True)  # who was invited
+    rewarded = Column(Boolean, default=False)  # bonus given?
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+# --- Season Pass ---
+class Season(Base):
+    __tablename__ = "seasons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    is_active = Column(Boolean, default=True)
+
+    tasks = relationship("SeasonTask", back_populates="season")
+
+class SeasonTask(Base):
+    __tablename__ = "season_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    season_id = Column(Integer, ForeignKey("seasons.id"), index=True)
+    title = Column(String)         # e.g. "Зроби 10 спінів"
+    task_type = Column(String)     # "spins", "unique_cards", "premium_spins"
+    target = Column(Integer)       # e.g. 10
+    reward_coins = Column(Integer, default=0)
+    reward_energy = Column(Integer, default=0)
+
+    season = relationship("Season", back_populates="tasks")
+
+class UserSeasonProgress(Base):
+    __tablename__ = "user_season_progress"
+    __table_args__ = (UniqueConstraint('user_id', 'task_id', name='_user_task_uc'),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    task_id = Column(Integer, ForeignKey("season_tasks.id"), index=True)
+    progress = Column(Integer, default=0)
+    claimed = Column(Boolean, default=False)
+    claimed_at = Column(DateTime, nullable=True)
+
+    task = relationship("SeasonTask")
