@@ -757,7 +757,7 @@ class UserAdmin(ModelView, model=models.User):
     name = "Користувач"
     name_plural = "Користувачі"
     icon = "fa-solid fa-user"
-    column_list = [models.User.id, models.User.username, models.User.first_name, models.User.coins, models.User.energy, models.User.total_spins]
+    column_list = [models.User.id, models.User.username, models.User.first_name, models.User.coins, models.User.energy, models.User.total_spins, models.User.referred_by]
     search_fields = ["username", "first_name", "id"]
     inline_models = [models.UserCard]
 
@@ -789,11 +789,32 @@ class PurchaseLogAdmin(ModelView, model=models.PurchaseLog):
     column_list = [models.PurchaseLog.id, models.PurchaseLog.user_id, models.PurchaseLog.item, models.PurchaseLog.cost, models.PurchaseLog.timestamp]
     search_fields = ["user_id", "item"]
 
+class ReferralAdmin(ModelView, model=models.Referral):
+    name = "Реферал"
+    name_plural = "Реферали"
+    icon = "fa-solid fa-link"
+    column_list = ["id", "referrer_id", "invited_id", "rewarded", "created_at"]
+
+class SeasonAdmin(ModelView, model=models.Season):
+    name = "Сезон"
+    name_plural = "Сезони"
+    icon = "fa-solid fa-calendar"
+    column_list = ["id", "name", "start_date", "end_date", "is_active"]
+
+class SeasonTaskAdmin(ModelView, model=models.SeasonTask):
+    name = "Завдання Сезону"
+    name_plural = "Завдання Сезону"
+    icon = "fa-solid fa-check-double"
+    column_list = ["id", "season_id", "title", "reward_coins", "reward_energy"]
+
 admin.add_view(UserAdmin)
 admin.add_view(CardAdmin)
 admin.add_view(UserCardAdmin)
 admin.add_view(SpinLogAdmin)
 admin.add_view(PurchaseLogAdmin)
+admin.add_view(ReferralAdmin)
+admin.add_view(SeasonAdmin)
+admin.add_view(SeasonTaskAdmin)
 
 if __name__ == "__main__":
     import uvicorn
