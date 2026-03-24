@@ -137,8 +137,10 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = FastAPI(title="UAIFU Admin API", version="1.0.0")
 
-# Add session middleware for sqladmin
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
+@app.get("/debug/users")
+async def debug_users(db: Session = Depends(get_db)):
+    users = db.query(models.User).all()
+    return [{"id": u.id, "username": u.username, "first_name": u.first_name, "coins": u.coins} for u in users]
 
 # Enable CORS for frontend
 app.add_middleware(
