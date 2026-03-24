@@ -18,6 +18,7 @@ function App() {
   const [season, setSeason] = useState(null)
   const [referralData, setReferralData] = useState(null)
   const [claimingTask, setClaimingTask] = useState(null)
+  const [fetchingCollection, setFetchingCollection] = useState(false)
 
   const triggerHaptic = (type = 'light') => {
     const haptic = window.Telegram?.WebApp?.HapticFeedback;
@@ -59,11 +60,15 @@ function App() {
 
   const fetchCollection = async () => {
     if (!user) return;
+    setFetchingCollection(true);
     try {
-      const response = await axios.get(`${BACKEND_URL}/collection?user_id=${user.id}`)
-      setCollection(response.data)
+      const response = await axios.get(`${BACKEND_URL}/collection?user_id=${user.id}`);
+      setCollection(response.data);
     } catch (error) {
-      console.error("Error fetching collection:", error)
+      console.error("Error fetching collection:", error);
+      showToast('Помилка завантаження колекції');
+    } finally {
+      setFetchingCollection(false);
     }
   }
 
@@ -129,6 +134,8 @@ function App() {
   useEffect(() => {
     if (user) {
       fetchUserStats()
+      fetchCollection() // Load immediately on start to prevent 0-count anxiety
+      
       // Check for referral in start param
       const tg = window.Telegram?.WebApp;
       const startParam = tg?.initDataUnsafe?.start_param || '';
@@ -344,18 +351,30 @@ function App() {
 
         {/* Top Stats Bar */}
         {activeTab === 'home' && (
-          <div className="w-full max-w-md flex gap-2 mb-3">
-            <div className="flex-1 bg-slate-800/40 border border-slate-700/50 p-1.5 px-3 rounded-xl flex items-center justify-between">
-              <span className="text-[9px] font-bold text-slate-400">ЕНЕРГІЯ</span>
-              <span className={`text-xs font-black ${userStats.energy === 0 ? 'text-red-400' : 'text-cyan-400'}`}>
-                {userStats.energy}/{userStats.max_energy}
-              </span>
-            </div>
-            <div className="flex-1 bg-slate-800/40 border border-slate-700/50 p-1.5 px-3 rounded-xl flex items-center justify-between">
-              <div className="flex items-center gap-1 text-xs font-black text-yellow-400">
-                {userStats.coins}
-                <img src="/coin.png" alt="Coins" className="w-4 h-4 object-cover object-center ml-0.5" style={{ imageRendering: 'auto' }} />
+          <div className="w-full max-w-md flex flex-col gap-2 mb-3">
+            <div className="flex gap-2">
+              <div className="flex-1 bg-slate-800/40 border border-slate-700/50 p-1.5 px-3 rounded-xl flex items-center justify-between">
+                <span className="text-[9px] font-bold text-slate-400">ЕНЕРГІЯ</span>
+                <span className={`text-xs font-black ${userStats.energy === 0 ? 'text-red-400' : 'text-cyan-400'}`}>
+                  {userStats.energy}/{userStats.max_energy}
+                </span>
               </div>
+              <div className="flex-1 bg-slate-800/40 border border-slate-700/50 p-1.5 px-3 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-1 text-xs font-black text-yellow-400">
+                  {userStats.coins}
+                  <img src="/coin.png" alt="Coins" className="w-4 h-4 object-cover object-center ml-0.5" style={{ imageRendering: 'auto' }} />
+                </div>
+              </div>
+            </div>
+            {/* Quick Progress Bar */}
+            <div 
+              onClick={() => setActiveTab('collection')}
+              className="w-full bg-slate-800/20 border border-slate-700/30 p-1.5 px-3 rounded-lg flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Твоя Колекція</span>
+              <span className="text-[9px] font-black text-blue-400">
+                {fetchingCollection ? 'Оновлення...' : `${collection.length} / ${userStats.total_cards}`}
+              </span>
             </div>
           </div>
         )}
@@ -425,7 +444,16 @@ function App() {
         ) : activeTab === 'collection' ? (
           <div className="w-full max-w-md animate-fade-in flex-1">
             <div className="flex flex-row justify-between items-center mb-6">
-              <h2 className="text-xl font-black tracking-tight">ТВОЇ ЗДОБУТКИ</h2>
+              <div className="flex flex-col">
+                <h2 className="text-xl font-black tracking-tight">ТВОЇ ЗДОБУТКИ</h2>
+                <button 
+                  onClick={fetchCollection} 
+                  disabled={fetchingCollection}
+                  className="text-[8px] font-bold text-blue-500/60 uppercase tracking-tighter text-left mt-0.5 active:text-blue-400"
+                >
+                  {fetchingCollection ? '⚡ СИНХРОНІЗАЦІЯ...' : '⟳ ОНОВИТИ ДАНІ'}
+                </button>
+              </div>
               <div className="flex flex-col items-end gap-1">
                 <span className="bg-blue-500/10 text-blue-400 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-500/20">
                   {collection.length} / {userStats.total_cards} КАРТ
