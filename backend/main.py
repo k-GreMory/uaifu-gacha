@@ -161,44 +161,61 @@ async def debug_user(user_id: int, db: Session = Depends(get_db)):
 # TEMPORARY: Recovery merge for orphaned cards
 @app.get("/admin/recover-orphans")
 async def admin_recover_orphans(db: Session = Depends(get_db)):
-    target_id = 908721870 # The active user (Liveua)
-    
-    target_user = db.query(models.User).filter(models.User.id == target_id).first()
-    if not target_user:
-        return {"error": "Target user not found"}
-    
-    # Target cards for NULL user_id explicitly (as seen in diagnostics)
-    orphans = db.query(models.UserCard).filter(models.UserCard.user_id.is_(None)).all()
-    
-    recovered_count = 0
-    merged_count = 0
-    
-    for oc in orphans:
-        # Check if target already has this card to avoid constraint violation
-        target_card = db.query(models.UserCard).filter(
-            models.UserCard.user_id == target_id,
-            models.UserCard.card_id == oc.card_id
-        ).first()
+    import traceback
+    try:
+        target_id = 908721870 # The active user (Liveua)
         
-        if target_card:
-            # Merge duplicates
-            target_card.duplicates += (oc.duplicates + 1)
-            db.delete(oc)
-            merged_count += 1
-        else:
-            # Reassign
-            oc.user_id = target_id
-            recovered_count += 1
-            
-    db.commit()
-    return {
-        "status": "success", 
-        "recovered_unique": recovered_count, 
-        "merged_into_existing": merged_count,
-        "total_impacted": recovered_count + merged_count,
-        "target_id": target_id,
-        "msg": f"Rescued {recovered_count + merged_count} cards from the void."
-    }
+        target_user = db.query(models.User).filter(models.User.id == target_id).first()
+        if not target_user:
+            return {"error": "Target user not found"}
+        
+        # 1. Pre-fetch target user's current cards into a map for O(1) lookup
+        target_cards = db.query(models.UserCard).filter(models.UserCard.user_id == target_id).all()
+        target_map = {tc.card_id: tc for tc in target_cards}
+        
+        # 2. Get all cards with NULL user_id explicitly
+        orphans = db.query(models.UserCard).filter(models.UserCard.user_id.is_(None)).all()
+        
+        recovered_count = 0
+        merged_count = 0
+        
+        for oc in orphans:
+            card_id = oc.card_id
+            if not card_id:
+                db.delete(oc) # Invalid record
+                continue
+                
+            if card_id in target_map:
+                # Merge duplicates safely
+                tc = target_map[card_id]
+                oc_dupes = oc.duplicates if oc.duplicates is not None else 0
+                tc_dupes = tc.duplicates if tc.duplicates is not None else 0
+                tc.duplicates = int(tc_dupes) + int(oc_dupes) + 1
+                db.delete(oc)
+                merged_count += 1
+            else:
+                # Reassign
+                oc.user_id = target_id
+                recovered_count += 1
+                # Add to map so we don't accidentally create a duplicate if the orphan list has same card twice
+                target_map[card_id] = oc 
+                
+        db.commit()
+        return {
+            "status": "success", 
+            "recovered_unique": recovered_count, 
+            "merged_into_existing": merged_count,
+            "total_impacted": recovered_count + merged_count,
+            "target_id": target_id,
+            "msg": f"Rescued {recovered_count + merged_count} cards with optimized logic."
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_type": type(e).__name__,
+            "error_msg": str(e),
+            "traceback": traceback.format_exc()
+        }
 
 # Enable CORS for frontend
 app.add_middleware(
