@@ -781,17 +781,17 @@ class SpinLogAdmin(ModelView, model=models.SpinLog):
     name = "Лог Спінів"
     name_plural = "Логи Спінів"
     icon = "fa-solid fa-list"
-    column_list = [models.SpinLog.id, models.SpinLog.user_id, models.SpinLog.card_id, models.SpinLog.is_duplicate, models.SpinLog.created_at]
+    column_list = [models.SpinLog.id, models.SpinLog.user_id, models.SpinLog.card_id, models.SpinLog.is_duplicate, models.SpinLog.timestamp]
     search_fields = [models.SpinLog.user_id, models.SpinLog.card_id]
-    column_filters = [models.SpinLog.is_duplicate, models.SpinLog.created_at]
+    column_filters = [models.SpinLog.is_duplicate, models.SpinLog.timestamp]
 
 class PurchaseLogAdmin(ModelView, model=models.PurchaseLog):
     name = "Лог Покупок"
     name_plural = "Логи Покупок"
     icon = "fa-solid fa-cart-shopping"
-    column_list = [models.PurchaseLog.id, models.PurchaseLog.user_id, models.PurchaseLog.item, models.PurchaseLog.cost, models.PurchaseLog.created_at]
+    column_list = [models.PurchaseLog.id, models.PurchaseLog.user_id, models.PurchaseLog.item, models.PurchaseLog.cost, models.PurchaseLog.timestamp]
     search_fields = [models.PurchaseLog.user_id, models.PurchaseLog.item]
-    column_filters = [models.PurchaseLog.item, models.PurchaseLog.created_at]
+    column_filters = [models.PurchaseLog.item, models.PurchaseLog.timestamp]
 
 admin.add_view(UserAdmin)
 admin.add_view(CardAdmin)
