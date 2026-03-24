@@ -158,49 +158,51 @@ async def debug_user(user_id: int, db: Session = Depends(get_db)):
         "card_ids": [c.card_id for c in cards]
     }
 
-# TEMPORARY: Merge user accounts to restore progress
-@app.get("/admin/merge-progress")
-async def admin_merge_progress(db: Session = Depends(get_db)):
-    source_id = 959711352 # The 277 cards profile
-    target_id = 908721870 # The active user
+# TEMPORARY: Recovery merge for orphaned cards
+@app.get("/admin/recover-orphans")
+async def admin_recover_orphans(db: Session = Depends(get_db)):
+    target_id = 908721870 # The active user (Liveua)
     
-    source_user = db.query(models.User).filter(models.User.id == source_id).first()
     target_user = db.query(models.User).filter(models.User.id == target_id).first()
+    if not target_user:
+        return {"error": "Target user not found"}
     
-    if not source_user or not target_user:
-        return {"error": "Source or target user not found"}
+    # Find all UserCards with NULL user_id or non-existent user_id
+    from sqlalchemy import or_
+    existing_user_ids = [u.id for u in db.query(models.User.id).all()]
+    orphans = db.query(models.UserCard).filter(
+        or_(
+            models.UserCard.user_id == None,
+            ~models.UserCard.user_id.in_(existing_user_ids)
+        )
+    ).all()
     
-    # Merge cards
-    source_cards = db.query(models.UserCard).filter(models.UserCard.user_id == source_id).all()
+    recovered_count = 0
     merged_count = 0
-    new_count = 0
-    for sc in source_cards:
+    for oc in orphans:
+        # Check if target already has this card to avoid constraint violation
         target_card = db.query(models.UserCard).filter(
             models.UserCard.user_id == target_id,
-            models.UserCard.card_id == sc.card_id
+            models.UserCard.card_id == oc.card_id
         ).first()
+        
         if target_card:
-            target_card.duplicates += (sc.duplicates + 1)
-            db.delete(sc)
+            # Add duplicates: current + orphan's count + 1 (for the card itself)
+            target_card.duplicates += (oc.duplicates + 1)
+            db.delete(oc)
             merged_count += 1
         else:
-            sc.user_id = target_id
-            new_count += 1
+            oc.user_id = target_id
+            recovered_count += 1
             
-    # Merge Coins/Spins
-    target_user.coins += source_user.coins
-    target_user.total_spins += source_user.total_spins
-    
-    # Update Logs
-    db.query(models.Referral).filter(models.Referral.referrer_id == source_id).update({models.Referral.referrer_id: target_id})
-    db.query(models.Referral).filter(models.Referral.invited_id == source_id).update({models.Referral.invited_id: target_id})
-    db.query(models.PurchaseLog).filter(models.PurchaseLog.user_id == source_id).update({models.PurchaseLog.user_id: target_id})
-    db.query(models.SpinLog).filter(models.SpinLog.user_id == source_id).update({models.SpinLog.user_id: target_id})
-    
-    # Cleanup
-    db.delete(source_user)
     db.commit()
-    return {"status": "success", "merged": merged_count, "new_added": new_count, "target_id": target_id}
+    return {
+        "status": "success", 
+        "recovered_unique": recovered_count, 
+        "merged_duplicates": merged_count,
+        "total_impacted": recovered_count + merged_count,
+        "target_id": target_id
+    }
 
 # Enable CORS for frontend
 app.add_middleware(
