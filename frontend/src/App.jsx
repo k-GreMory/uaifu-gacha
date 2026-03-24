@@ -167,7 +167,7 @@ function App() {
         coins: response.data.user_coins
       }))
       
-      if (showCollection) fetchCollection()
+      if (activeTab === 'collection') fetchCollection()
     } catch (error) {
       console.error("Error spinning:", error)
       const errorMsg = error.response?.data?.detail || error.message;
@@ -208,7 +208,7 @@ function App() {
     setResult(null);
     setIsFlipping(false);
     setLoading(true);
-    setShowShop(false);
+    setActiveTab('home');
     try {
       // Run request and minimum delay in parallel — result shows only after BOTH finish
       const minDelay = new Promise(resolve => setTimeout(resolve, 1400))
@@ -226,7 +226,7 @@ function App() {
         energy: response.data.user_energy,
         coins: response.data.user_coins
       }));
-      if (showCollection) fetchCollection();
+      if (activeTab === 'collection') fetchCollection();
     } catch (error) {
       showToast(error.response?.data?.detail || "Помилка покупки");
     } finally {
