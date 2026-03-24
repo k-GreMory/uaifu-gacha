@@ -165,6 +165,50 @@ async def debug_user(user_id: int, db: Session = Depends(get_db)):
         "card_ids": [c.card_id for c in cards]
     }
 
+# TEMPORARY: Merge user accounts to restore progress
+@app.get("/admin/merge-progress")
+async def admin_merge_progress(db: Session = Depends(get_db)):
+    source_id = 959711352 # The 277 cards profile
+    target_id = 908721870 # The active user
+    
+    source_user = db.query(models.User).filter(models.User.id == source_id).first()
+    target_user = db.query(models.User).filter(models.User.id == target_id).first()
+    
+    if not source_user or not target_user:
+        return {"error": "Source or target user not found"}
+    
+    # Merge cards
+    source_cards = db.query(models.UserCard).filter(models.UserCard.user_id == source_id).all()
+    merged_count = 0
+    new_count = 0
+    for sc in source_cards:
+        target_card = db.query(models.UserCard).filter(
+            models.UserCard.user_id == target_id,
+            models.UserCard.card_id == sc.card_id
+        ).first()
+        if target_card:
+            target_card.duplicates += (sc.duplicates + 1)
+            db.delete(sc)
+            merged_count += 1
+        else:
+            sc.user_id = target_id
+            new_count += 1
+            
+    # Merge Coins/Spins
+    target_user.coins += source_user.coins
+    target_user.total_spins += source_user.total_spins
+    
+    # Update Logs
+    db.query(models.Referral).filter(models.Referral.referrer_id == source_id).update({models.Referral.referrer_id: target_id})
+    db.query(models.Referral).filter(models.Referral.invited_id == source_id).update({models.Referral.invited_id: target_id})
+    db.query(models.PurchaseLog).filter(models.PurchaseLog.user_id == source_id).update({models.PurchaseLog.user_id: target_id})
+    db.query(models.SpinLog).filter(models.SpinLog.user_id == source_id).update({models.SpinLog.user_id: target_id})
+    
+    # Cleanup
+    db.delete(source_user)
+    db.commit()
+    return {"status": "success", "merged": merged_count, "new_added": new_count, "target_id": target_id}
+
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
