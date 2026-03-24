@@ -31,6 +31,14 @@ function App() {
     }
   }
 
+  const updateStats = (data) => {
+    if (!data) return;
+    setUserStats(prev => ({
+      ...prev,
+      ...data
+    }));
+  }
+
   const showToast = (message) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
@@ -87,7 +95,7 @@ function App() {
     try {
       const res = await axios.post(`${BACKEND_URL}/season/claim?user_id=${user.id}&task_id=${taskId}`)
       showToast(res.data.message)
-      setUserStats(prev => ({ ...prev, coins: res.data.coins, energy: res.data.energy }))
+      updateStats(res.data.user_stats)
       fetchSeason(user.id)
     } catch (e) {
       showToast(e.response?.data?.detail || 'Помилка')
@@ -177,6 +185,25 @@ function App() {
         minDelay
       ])
       setResult(response.data)
+      updateStats(response.data.user_stats)
+
+      // Optimistic Collection Sync
+      setCollection(prev => {
+        const existing = prev.find(c => c.card_id === response.data.card_id);
+        if (existing) {
+          return prev.map(c => c.card_id === response.data.card_id ? { ...c, duplicates: response.data.new_level - 1 } : c);
+        } else {
+          return [...prev, {
+            card_id: response.data.card_id,
+            name: response.data.name,
+            rarity: response.data.rarity,
+            image: response.data.image,
+            duplicates: 0,
+            acquired_at: new Date().toISOString()
+          }];
+        }
+      });
+
       setTimeout(() => {
         setIsFlipping(true);
         if (['Legendary', 'Mythic'].includes(response.data.rarity)) {
@@ -185,15 +212,6 @@ function App() {
           triggerHaptic('medium');
         }
       }, 100)
-      
-      // INSTANT UI UPDATE from spin payload without waiting for second networking roundtrip
-      setUserStats(prev => ({
-        ...prev,
-        energy: response.data.user_energy,
-        coins: response.data.user_coins
-      }))
-      
-      if (activeTab === 'collection') fetchCollection()
     } catch (error) {
       console.error("Error spinning:", error)
       const errorMsg = error.response?.data?.detail || error.message;
@@ -214,11 +232,7 @@ function App() {
     try {
       const response = await axios.post(`${BACKEND_URL}/buy_energy?user_id=${user.id}`, null);
       showToast(response.data.message);
-      setUserStats(prev => ({
-        ...prev,
-        energy: response.data.energy,
-        coins: response.data.coins
-      }));
+      updateStats(response.data.user_stats);
     } catch (error) {
       showToast(error.response?.data?.detail || "Помилка покупки");
     } finally {
@@ -245,16 +259,29 @@ function App() {
         minDelay
       ])
       setResult(response.data);
+      updateStats(response.data.user_stats);
+
+      // Optimistic Collection Sync
+      setCollection(prev => {
+        const existing = prev.find(c => c.card_id === response.data.card_id);
+        if (existing) {
+          return prev.map(c => c.card_id === response.data.card_id ? { ...c, duplicates: response.data.new_level - 1 } : c);
+        } else {
+          return [...prev, {
+            card_id: response.data.card_id,
+            name: response.data.name,
+            rarity: response.data.rarity,
+            image: response.data.image,
+            duplicates: 0,
+            acquired_at: new Date().toISOString()
+          }];
+        }
+      });
+
       setTimeout(() => setIsFlipping(true), 100);
       if (response.data.message) {
         showToast(response.data.message);
       }
-      setUserStats(prev => ({
-        ...prev,
-        energy: response.data.user_energy,
-        coins: response.data.user_coins
-      }));
-      if (activeTab === 'collection') fetchCollection();
     } catch (error) {
       showToast(error.response?.data?.detail || "Помилка покупки");
     } finally {
