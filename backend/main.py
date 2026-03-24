@@ -167,18 +167,12 @@ async def admin_recover_orphans(db: Session = Depends(get_db)):
     if not target_user:
         return {"error": "Target user not found"}
     
-    # Find all UserCards with NULL user_id or non-existent user_id
-    from sqlalchemy import or_
-    existing_user_ids = [u.id for u in db.query(models.User.id).all()]
-    orphans = db.query(models.UserCard).filter(
-        or_(
-            models.UserCard.user_id == None,
-            ~models.UserCard.user_id.in_(existing_user_ids)
-        )
-    ).all()
+    # Target cards for NULL user_id explicitly (as seen in diagnostics)
+    orphans = db.query(models.UserCard).filter(models.UserCard.user_id.is_(None)).all()
     
     recovered_count = 0
     merged_count = 0
+    
     for oc in orphans:
         # Check if target already has this card to avoid constraint violation
         target_card = db.query(models.UserCard).filter(
@@ -187,11 +181,12 @@ async def admin_recover_orphans(db: Session = Depends(get_db)):
         ).first()
         
         if target_card:
-            # Add duplicates: current + orphan's count + 1 (for the card itself)
+            # Merge duplicates
             target_card.duplicates += (oc.duplicates + 1)
             db.delete(oc)
             merged_count += 1
         else:
+            # Reassign
             oc.user_id = target_id
             recovered_count += 1
             
@@ -199,9 +194,10 @@ async def admin_recover_orphans(db: Session = Depends(get_db)):
     return {
         "status": "success", 
         "recovered_unique": recovered_count, 
-        "merged_duplicates": merged_count,
+        "merged_into_existing": merged_count,
         "total_impacted": recovered_count + merged_count,
-        "target_id": target_id
+        "target_id": target_id,
+        "msg": f"Rescued {recovered_count + merged_count} cards from the void."
     }
 
 # Enable CORS for frontend
