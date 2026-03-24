@@ -757,36 +757,31 @@ class UserAdmin(ModelView, model=models.User):
     name = "Користувач"
     name_plural = "Користувачі"
     icon = "fa-solid fa-user"
-    column_list = ["id", "username", "first_name", "coins", "energy", "total_spins"]
-    search_fields = ["username", "first_name", "id"]
+    column_list = [models.User.id, models.User.username, models.User.first_name, models.User.coins, models.User.energy]
 
 class CardAdmin(ModelView, model=models.Card):
     name = "Персонаж"
     name_plural = "Персонажі"
     icon = "fa-solid fa-image"
-    column_list = ["id", "name", "rarity", "image"]
-    search_fields = ["name", "id"]
+    column_list = [models.Card.id, models.Card.name, models.Card.rarity]
 
 class UserCardAdmin(ModelView, model=models.UserCard):
     name = "Колекція"
     name_plural = "Колекції"
     icon = "fa-solid fa-box"
-    column_list = ["id", "user_id", "card_id", "duplicates", "acquired_at"]
-    search_fields = ["user_id", "card_id"]
+    column_list = [models.UserCard.id, models.UserCard.user_id, models.UserCard.card_id, models.UserCard.duplicates]
 
 class SpinLogAdmin(ModelView, model=models.SpinLog):
     name = "Лог Спінів"
     name_plural = "Логи Спінів"
     icon = "fa-solid fa-list"
-    column_list = ["id", "user_id", "card_id", "is_duplicate", "timestamp"]
-    search_fields = ["user_id", "card_id"]
+    column_list = [models.SpinLog.id, models.SpinLog.user_id, models.SpinLog.card_id, models.SpinLog.timestamp]
 
 class PurchaseLogAdmin(ModelView, model=models.PurchaseLog):
     name = "Лог Покупок"
     name_plural = "Логи Покупок"
     icon = "fa-solid fa-cart-shopping"
-    column_list = ["id", "user_id", "item", "cost", "timestamp"]
-    search_fields = ["user_id", "item"]
+    column_list = [models.PurchaseLog.id, models.PurchaseLog.user_id, models.PurchaseLog.item, models.PurchaseLog.cost, models.PurchaseLog.timestamp]
 
 admin.add_view(UserAdmin)
 admin.add_view(CardAdmin)
