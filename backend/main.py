@@ -45,7 +45,49 @@ def migrate_database():
                 db.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
                 db.commit()
     except Exception as e:
-        print(f"Migration error: {e}")
+        print(f"Migration error during column update: {e}")
+    finally:
+        db.close()
+
+# Merging character versions that have multiple IDs
+def reconcile_card_duplicates():
+    MAPPING = {
+        "c184": "c201", "c185": "c202", "c186": "c203", "c187": "c205",
+        "c204": "c188", "c206": "c189", "c190": "c207", "c208": "c191",
+        "c192": "c209", "c193": "c210", "c211": "c194", "c212": "c195",
+        "c213": "c196", "c214": "c197", "c215": "c198", "c199": "c216"
+    }
+    
+    db = SessionLocal()
+    try:
+        for old_id, new_id in MAPPING.items():
+            # 1. Update UserCard entries
+            old_entries = db.query(models.UserCard).filter(models.UserCard.card_id == old_id).all()
+            for old_entry in old_entries:
+                primary_entry = db.query(models.UserCard).filter(
+                    models.UserCard.user_id == old_entry.user_id,
+                    models.UserCard.card_id == new_id
+                ).first()
+                
+                if primary_entry:
+                    # Merge: +1 for the card itself, plus its duplicates
+                    primary_entry.duplicates += (old_entry.duplicates + 1)
+                    db.delete(old_entry)
+                else:
+                    # Move: Change ID
+                    old_entry.card_id = new_id
+            
+            # 2. Update SpinLog entries
+            db.query(models.SpinLog).filter(models.SpinLog.card_id == old_id).update({models.SpinLog.card_id: new_id})
+            
+            # 3. Clean up the cards table if the old ID exists
+            db.query(models.Card).filter(models.Card.id == old_id).delete()
+            
+        db.commit()
+        print("Character card consolidation completed successfully.")
+    except Exception as e:
+        print(f"Error during consolidation: {e}")
+        db.rollback()
     finally:
         db.close()
 
@@ -69,6 +111,7 @@ def seed_database():
         db.close()
 
 migrate_database()
+reconcile_card_duplicates()
 seed_database()
 
 load_dotenv()

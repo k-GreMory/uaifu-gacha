@@ -183,22 +183,14 @@ CARDS = [
     {"id": "c181", "name": "Ace Portgas D.", "rarity": "Common", "image": "/cards/c181.jpg", "description": "One of the most obvious features on Ace is his tattoos. Ace's back tattoo is left intact in the English version of the dub despite 4Kids' previous edits to crosses. At the same time Ace also promotes..."},
     {"id": "c182", "name": "Nagisa Furukawa", "rarity": "Common", "image": "/cards/c182.jpg", "description": "Birthday: December 24 Height: 155 cm Weight: 43 kg BWH: 80-55-81 Blood type: A Favorite TV show: Dango Daikazoku Favorite song: Dango Daikazoku Favorite animal: Cats Favorite food: Anpan and Pork Cutl..."},
     {"id": "c183", "name": "Motoko Kusanagi", "rarity": "Common", "image": "/cards/c183.jpg", "description": "Height: 5'6'  Motoko Kusanagi is the mysterious, even enigmatic woman who has led a group of SpecOps for years, and was recruited by Aramaki to work for Section 9. Almost nothing is known about her, h..."},
-    {"id": "c184", "name": "Minato Namikaze", "rarity": "Common", "image": "/cards/c184.jpg", "description": "Birthday: January 25 Zodiac Sign: Aquarius Gender: Male  Age: Part II: 24 Height: Part I: 179.2 cm Weight: Part I: 66.1 kg Blood type: B  Minato Namikaze was the Yondaime Hokage of Konohagakure and th..."},
-    {"id": "c185", "name": "Chitoge Kirisaki", "rarity": "Common", "image": "/cards/c185.jpg", "description": "Age: 15-17 Birthday: June 7 Height: 160 cm Blood type: B Likes: Raku Ichijou, ramen, her ribbon Dislikes: Claude's over-protectiveness, being called a gorilla by Raku, Dorayaki Abilities: Immense Stre..."},
-    {"id": "c186", "name": "Tsubasa Hanekawa", "rarity": "Common", "image": "/cards/c186.jpg", "description": "Age: 17, 18 (Monogatari Series: Second Season onwards) Hair: Long/short black hair Eyes: Dark-colored Skin: Fair complexion Height: 158 cm  Favorite phrase/slogan: 'I don't know everything, I just kno..."},
-    {"id": "c187", "name": "Aqua", "rarity": "Common", "image": "/cards/c187.jpg", "description": "Birthday: August 1 Height: 158 cm Weight: 49 kg Three sizes: B83-W56-H83  The goddess of water who judged humans to send to the RPG world, up until Kazuma dragged her along with him. She is an energet..."},
     {"id": "c188", "name": "Johnny Joestar", "rarity": "Common", "image": "/cards/c188.jpg", "description": "Johnny Joestar, also known as 'Joe Kid' or 'JoJo', was a racing prodigy. However, when waiting in line for a play, the girl he was with convinced him to cut to the front of the line and bribe the boun..."},
-    {"id": "c189", "name": "Allen Walker", "rarity": "Common", "image": "/cards/c189.jpg", "description": "Age: 15; 16; 17 Birthday: Unknown, December 25 (date of adoption) Height: 168 cm (5'6'), now 174 cm (5'8 1/2')  Weight: 127.9 lbs (58 kg), now 123 lbs (56 kg) Blood type: O Nationality: British  Favor..."},
-    {"id": "c190", "name": "Kenma Kozume", "rarity": "Common", "image": "/cards/c190.jpg", "description": "Team: Nekoma High School Age: 16 Height: 169.2 cm Weight: 58.3 kg Birthday: October 16 Year: 2nd Year, class 3 Number: 5 Position: Setter Favorite food: Apple pie Current Concerns: Summer is hot and w..."},
+    {"id": "c189", "name": "Allen Walker", "rarity": "Common", "image": "/cards/c189.jpg", "description": "Age: 15; 16; 17 Birthday: Unknown, December 25 (date of adoption) Height: 168 cm (5'6\"), now 174 cm (5'8 1/2\")  Weight: 127.9 lbs (58 kg), now 123 lbs (56 kg) Blood type: O Nationality: British  Favor..."},
     {"id": "c191", "name": "Chizuru Ichinose", "rarity": "Common", "image": "/cards/c191.jpg", "description": "Birthday: April 19, 1998 Gender: Female Age: 19-20 Blood Type: A Height: 5'4' (162 cm) (+1,2' heel) Eye Color: Brown Hair Color: Brown Occupation: College Student, Rental Girlfriend (part-time), Leadi..."},
-    {"id": "c192", "name": "Brook", "rarity": "Common", "image": "/cards/c192.jpg", "description": "Age: 88; 90 Birthdate: April 3; Aries Height: 2m 66cm (8'8½') Affiliation: Straw Hat Pirates; Rumbar Pirates (former) Position: Musician, Swordsman Devil Fruit: Yomi Yomi no Mi (Revive Revive Fruit) T..."},
-    {"id": "c193", "name": "Wolfgang Grimmer", "rarity": "Common", "image": "/cards/c193.jpg", "description": "A freelance journalist who is researching Kinderheim 511; he is also soon drawn into the search for Johan, as he decides to help Tenma.    (Source: Wikipedia)..."},
     {"id": "c194", "name": "Megumi Katou", "rarity": "Common", "image": "/cards/c194.jpg", "description": "Age: 15 Birthday: December 22 Height: 175 cm (5'9') Hair color: black Eye color: green (manga), dark blue (anime)  Megumi is a tall, dark-haired boy with blue eyes. He wears the standard uniform of To..."},
     {"id": "c195", "name": "Accelerator", "rarity": "Common", "image": "/cards/c195.jpg", "description": "Age: 15-16 Height: 168 cm Hair color: white Eye color: red Classification: Esper Affiliation: GROUP (Former operative) Occupation: Nagatenjouki Academy Level: 5 Partner: Last Order Ability: Vector Man..."},
     {"id": "c196", "name": "Chrollo Lucilfer", "rarity": "Common", "image": "/cards/c196.jpg", "description": "Gender: Male Age: 26 Height: 177 cm Weight: 68 kg Hair color: Black Eye color: Black (1999), Grey (2011) Blood type: AB Occupation: Leader of the Phantom Troupe Nen type: Specialization  Chrollo Lucil..."},
     {"id": "c197", "name": "Rudeus Greyrat", "rarity": "Common", "image": "/cards/c197.jpg", "description": "Rudeus Greyrat is a reincarnated NEET who died, but his memories of his past life remained. His current body possesses high affinity for magic, even as a child...."},
     {"id": "c198", "name": "Jousuke Higashikata", "rarity": "Common", "image": "/cards/c198.jpg", "description": "Birthdate: May 29 Zodiac: Gemini Height: 6'1' (186 cm) Weight: 74 kg Rank:  Zanpakuto: Kyouka Suigetsu Shikai command: Shatter  Aizen is a polite, soft-spoken intellectual, often addressing his subord..."},
-    {"id": "c199", "name": "Sasha Blouse", "rarity": "Common", "image": "/cards/c199.jpg", "description": "Age: 16 Birthday: July 26 Height: 168 cm (5'6') Weight: 55 kg (121 lbs) Affiliations: 104th Trainees Squad, Scouting Legion Graduation Rank: 9th  Sasha is lightning fast, with uncanny intuition, but h..."},
 ]
 
 RARITY_CHANCES = {
@@ -234,13 +226,6 @@ NEW_CARDS = [
         "description": "Age: 17, 18 (Monogatari Series: Second Season onwards) Hair: Long/short black hair Eyes: Dark-colored Skin: Fair complexion Height: 158 cm  Favorite p..."
     },
     {
-        "id": "c204",
-        "name": "Johnny Joestar",
-        "rarity": "Common",
-        "image": "/cards/c204.jpg",
-        "description": "Johnny Joestar, also known as \"Joe Kid\" or \"JoJo\", was a racing prodigy. However, when waiting in line for a play, the girl he was with convinced him..."
-    },
-    {
         "id": "c205",
         "name": "Aqua",
         "rarity": "UnCommon",
@@ -248,25 +233,11 @@ NEW_CARDS = [
         "description": "Birthday: August 1 Height: 158 cm Weight: 49 kg Three sizes: B83-W56-H83  The goddess of water who judged humans to send to the RPG world, up until Ka..."
     },
     {
-        "id": "c206",
-        "name": "Allen Walker",
-        "rarity": "Common",
-        "image": "/cards/c206.jpg",
-        "description": "Age: 15; 16; 17 Birthday: Unknown, December 25 (date of adoption) Height: 168 cm (5'6\"), now 174 cm (5'8 1/2\")  Weight: 127.9 lbs (58 kg), now 123 lbs..."
-    },
-    {
         "id": "c207",
         "name": "Kenma Kozume",
         "rarity": "UnCommon",
         "image": "/cards/c207.jpg",
         "description": "Team: Nekoma High School Age: 16 Height: 169.2 cm Weight: 58.3 kg Birthday: October 16 Year: 2nd Year, class 3 Number: 5 Position: Setter Favorite foo..."
-    },
-    {
-        "id": "c208",
-        "name": "Chizuru Ichinose",
-        "rarity": "Common",
-        "image": "/cards/c208.jpg",
-        "description": "Birthday: April 19, 1998 Gender: Female Age: 19-20 Blood Type: A Height: 5'4\" (162 cm) (+1,2\" heel) Eye Color: Brown Hair Color: Brown Occupation: Col..."
     },
     {
         "id": "c209",
@@ -281,41 +252,6 @@ NEW_CARDS = [
         "rarity": "UnCommon",
         "image": "/cards/c210.jpg",
         "description": "A freelance journalist who is researching Kinderheim 511; he is also soon drawn into the search for Johan, as he decides to help Tenma.    (Source: Wi..."
-    },
-    {
-        "id": "c211",
-        "name": "Megumi Katou",
-        "rarity": "Common",
-        "image": "/cards/c211.jpg",
-        "description": "Birthday: September 23 Age: 16 Height: 160 cm Three sizes: B84-W57-H83  Megumi is the girl in the summer dress that Tomoya Aki met during \"fate's summ..."
-    },
-    {
-        "id": "c212",
-        "name": "Accelerator",
-        "rarity": "Common",
-        "image": "/cards/c212.jpg",
-        "description": "Age: 15-16 Height: 168 cm Hair color: white Eye color: red Classification: Esper Affiliation: GROUP (Former operative) Occupation: Nagatenjouki Academ..."
-    },
-    {
-        "id": "c213",
-        "name": "Chrollo Lucilfer",
-        "rarity": "Common",
-        "image": "/cards/c213.jpg",
-        "description": "Gender: Male Age: 26 Height: 177 cm Weight: 68 kg Hair color: Black Eye color: Black (1999), Grey (2011) Blood type: AB Occupation: Leader of the Phan..."
-    },
-    {
-        "id": "c214",
-        "name": "Rudeus Greyrat",
-        "rarity": "Common",
-        "image": "/cards/c214.jpg",
-        "description": "Rudeus Greyrat is a reincarnated NEET who died, but his memories of his past life remained. His current body possesses high affinity for magic, even a..."
-    },
-    {
-        "id": "c215",
-        "name": "Jousuke Higashikata",
-        "rarity": "Common",
-        "image": "/cards/c215.jpg",
-        "description": "Height: 180 cm Blood type: B Nationality: Japanese  Jousuke is the main protagonist of JoJo's Bizarre Adventure Part 4. He begins his story as a new f..."
     },
     {
         "id": "c216",
