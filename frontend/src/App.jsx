@@ -762,6 +762,11 @@ function App() {
 const DroneGame = ({ user, onClose, triggerHaptic }) => {
   const canvasRef = useRef(null)
   const droneImgRef = useRef(null)
+  // Day Assets Refs
+  const dayBgRef = useRef(null)
+  const cloudsRef = useRef(null)
+  const lightsRef = useRef(null)
+  
   const [gameState, setGameState] = useState('START') // START, PLAYING, GAMEOVER
   const [score, setScore] = useState(0)
   const [highScore, setHighScore] = useState(parseInt(localStorage.getItem('drone_highscore') || '0'))
@@ -776,14 +781,18 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
   const GAP_SIZE = 170
 
   const requestRef = useRef()
-  const birdRef = useRef({ x: 50, y: 250, velocity: 0, width: 44, height: 44 }) // Slightly larger for better sprite fit
+  const birdRef = useRef({ x: 50, y: 250, velocity: 0, width: 44, height: 44 })
   const pipesRef = useRef([])
   const frameCountRef = useRef(0)
 
   useEffect(() => {
-    const img = new Image()
-    img.src = '/drone.png'
-    img.onload = () => { droneImgRef.current = img }
+    // Load Drone
+    const img = new Image(); img.src = '/drone.png'; img.onload = () => { droneImgRef.current = img }
+    
+    // Load Day Theme
+    const bg = new Image(); bg.src = '/day_theme/day_bg.png'; bg.onload = () => { dayBgRef.current = bg }
+    const cl = new Image(); cl.src = '/day_theme/clouds.png'; cl.onload = () => { cloudsRef.current = cl }
+    const lt = new Image(); lt.src = '/day_theme/traffic_lights.png'; lt.onload = () => { lightsRef.current = lt }
   }, [])
 
   const startGame = () => {
@@ -864,52 +873,53 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
   const draw = (ctx) => {
     ctx.clearRect(0, 0, 400, 600)
     
-    // Background Gradient (Cyber City Night)
-    const bgGradient = ctx.createLinearGradient(0, 0, 0, 600)
-    bgGradient.addColorStop(0, '#0f172a') // Top
-    bgGradient.addColorStop(1, '#1e1b4b') // Bottom
-    ctx.fillStyle = bgGradient
+    // Day Sky
+    ctx.fillStyle = '#7dd3fc'
     ctx.fillRect(0, 0, 400, 600)
-    
-    // Distant Neon Grid (Floor)
-    ctx.strokeStyle = '#312e81'
-    ctx.lineWidth = 1
+
+    // Clouds (Slow Parallax)
+    if (cloudsRef.current) {
+        const x = -(frameCountRef.current * 0.2) % 1200
+        ctx.drawImage(cloudsRef.current, x, 50, 1200, 200)
+        ctx.drawImage(cloudsRef.current, x + 1200, 50, 1200, 200)
+    }
+
+    // Daytime City (Parallax)
+    if (dayBgRef.current) {
+        const bgX = -(frameCountRef.current * 0.8) % 800
+        ctx.drawImage(dayBgRef.current, bgX, 200, 800, 400)
+        ctx.drawImage(dayBgRef.current, bgX + 800, 200, 800, 400)
+    }
+
+    // Street Floor
+    ctx.fillStyle = '#475569'
+    ctx.fillRect(0, 550, 400, 50)
+    ctx.fillStyle = '#ffffff'
     for(let i=0; i<10; i++) {
-        const y = 450 + i * 20
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(400, y); ctx.stroke();
+        const x = (i * 80 - (frameCountRef.current * PIPE_SPEED) % 80)
+        ctx.fillRect(x, 573, 30, 4)
     }
 
-    // Parallax BG (Cyber Trees / Skyscrapers)
-    ctx.fillStyle = '#1e293b'
-    for(let i=0; i<6; i++) {
-        const x = (i * 150 - (frameCountRef.current * 0.4) % 150)
-        // Draw stylized "Cyber Buildings/Trees"
-        ctx.fillRect(x, 400, 60, 200)
-        ctx.fillStyle = '#334155'
-        ctx.fillRect(x+10, 420, 10, 10) // Windows
-        ctx.fillRect(x+40, 440, 10, 10)
-        ctx.fillStyle = '#1e293b'
-    }
-
-    // Energy Gates (Pipes) - Now Neon Pink/Violet to match the dog's warmth
+    // Obstacles (Traffic Lights)
     pipesRef.current.forEach(pipe => {
-      // Glow effect
-      ctx.shadowBlur = 15
-      ctx.shadowColor = '#d946ef'
-      ctx.fillStyle = '#f5d0fe'
+      ctx.fillStyle = '#1e293b' // Pole color
       
-      // Top Gate
-      ctx.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.top)
-      // Bottom Gate
-      ctx.fillRect(pipe.x, pipe.bottom, PIPE_WIDTH, 600 - pipe.bottom)
+      // Top Obstacle
+      ctx.fillRect(pipe.x + 20, 0, 10, pipe.top)
+      if (lightsRef.current) {
+          ctx.drawImage(lightsRef.current, 0, 0, 32, 64, pipe.x + 9, pipe.top - 64, 32, 64)
+      } else {
+          ctx.fillStyle = '#0f172a'; ctx.fillRect(pipe.x, pipe.top - 40, PIPE_WIDTH, 40)
+      }
       
-      // Decorative Neon Line
-      ctx.strokeStyle = '#d946ef'
-      ctx.lineWidth = 4
-      ctx.strokeRect(pipe.x + 2, 0, PIPE_WIDTH - 4, pipe.top)
-      ctx.strokeRect(pipe.x + 2, pipe.bottom, PIPE_WIDTH - 4, 600 - pipe.bottom)
-      
-      ctx.shadowBlur = 0
+      // Bottom Obstacle
+      ctx.fillStyle = '#1e293b'
+      ctx.fillRect(pipe.x + 20, pipe.bottom, 10, 600 - pipe.bottom)
+      if (lightsRef.current) {
+          ctx.drawImage(lightsRef.current, 0, 0, 32, 64, pipe.x + 9, pipe.bottom, 32, 64)
+      } else {
+          ctx.fillStyle = '#0f172a'; ctx.fillRect(pipe.x, pipe.bottom, PIPE_WIDTH, 40)
+      }
     })
 
     // Bird (Drone)
@@ -918,17 +928,11 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     ctx.rotate(Math.min(0.5, Math.max(-0.5, birdRef.current.velocity * 0.1)))
     
     if (droneImgRef.current) {
-        // Sprite sheet logic: 2x2 grid (using 3 frames)
         const frameWidth = droneImgRef.current.width / 2
         const frameHeight = droneImgRef.current.height / 2
         const frameIndex = Math.floor(frameCountRef.current / 5) % 3 
-        
         const sx = (frameIndex % 2) * frameWidth
         const sy = Math.floor(frameIndex / 2) * frameHeight
-        
-        // Add subtle shadow to drone
-        ctx.shadowBlur = 10
-        ctx.shadowColor = 'rgba(0,0,0,0.5)'
         
         ctx.drawImage(
             droneImgRef.current,
@@ -936,7 +940,7 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
             -birdRef.current.width/2, -birdRef.current.height/2, birdRef.current.width, birdRef.current.height
         )
     } else {
-        ctx.fillStyle = '#d946ef'
+        ctx.fillStyle = '#f97316'
         ctx.fillRect(-birdRef.current.width/2, -birdRef.current.height/2, birdRef.current.width, birdRef.current.height)
     }
     ctx.restore()
