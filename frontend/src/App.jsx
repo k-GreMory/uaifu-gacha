@@ -879,11 +879,13 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
   }
 
   const draw = (ctx) => {
-    ctx.clearRect(0, 0, 400, 600)
+    const cw = ctx.canvas.width
+    const ch = ctx.canvas.height
+    ctx.clearRect(0, 0, cw, ch)
     
-    // Day Sky (Synced to asset color)
+    // Day Sky (Base Color)
     ctx.fillStyle = '#29abe2' 
-    ctx.fillRect(0, 0, 400, 600)
+    ctx.fillRect(0, 0, cw, ch)
 
     // Sun (Solid Pixel-Art Diamond - NO ALPHA SHADES)
     ctx.fillStyle = '#fef08a'
@@ -912,11 +914,13 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
         drawPixelCloud(x + 180, y - 40)
     }
 
-    // Daytime City (Parallax)
-    if (dayBgRef.current) {
+    // Daytime City (Parallax - Clipped to avoid baked sky)
+    if (dayBgRef.current && dayBgRef.current.complete) {
         const bgX = -(frameCountRef.current * 0.8) % 800
-        ctx.drawImage(dayBgRef.current, bgX, 220, 800, 380)
-        ctx.drawImage(dayBgRef.current, bgX + 800, 220, 800, 380)
+        // Draw only the bottom part of the asset (buildings) to avoid sky mismatch
+        // Assuming buildings are in the bottom 2/3 of the 800x380 asset
+        ctx.drawImage(dayBgRef.current, 0, 150, 800, 230, bgX, 320, 800, 230)
+        ctx.drawImage(dayBgRef.current, 0, 150, 800, 230, bgX + 800, 320, 800, 230)
     }
 
     // Street Floor
