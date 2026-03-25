@@ -8,6 +8,46 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ||
                      ? 'http://localhost:8000' 
                      : PRODUCTION_URL)
 
+const DRONE_TYPES = ['RED', 'STEALTH']
+const OBSTACLE_TYPES = ['LIGHT', 'CONE']
+const INITIAL_BIRD = { x: 50, y: 250, velocity: 0, width: 44, height: 44 }
+
+const fetchCollectionData = async (userId) => {
+  const response = await axios.get(`${BACKEND_URL}/collection?user_id=${userId}`)
+  return response.data
+}
+
+const fetchLeaderboardData = async (mode) => {
+  const response = await axios.get(`${BACKEND_URL}/leaderboard?mode=${mode}`)
+  return response.data
+}
+
+const fetchSeasonData = async (userId) => {
+  const response = await axios.get(`${BACKEND_URL}/season?user_id=${userId}`)
+  return response.data
+}
+
+const fetchReferralData = async (userId) => {
+  const response = await axios.get(`${BACKEND_URL}/referral/link?user_id=${userId}`)
+  return response.data
+}
+
+const fetchUserStateData = async (telegramUser) => {
+  const params = new URLSearchParams({
+    user_id: telegramUser.id,
+    username: telegramUser.username || '',
+    first_name: telegramUser.first_name || ''
+  })
+  const response = await axios.get(`${BACKEND_URL}/user?${params.toString()}`)
+  return response.data
+}
+
+const getRandomIntInclusive = (min, max) => (
+  Math.floor(Math.random() * (max - min + 1)) + min
+)
+
+const pickRandomItem = (items) => items[getRandomIntInclusive(0, items.length - 1)]
+
 function App() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -26,8 +66,9 @@ function App() {
   const [fetchingCollection, setFetchingCollection] = useState(false)
   const [lastError, setLastError] = useState(null)
   const [debugMode, setDebugMode] = useState(false)
-  const [debugClickCount, setDebugClickCount] = useState(0)
   const [gameActive, setGameActive] = useState(false)
+  const toastTimeoutRef = useRef(null)
+  const debugClickCountRef = useRef(0)
 
   const triggerHaptic = (type = 'light') => {
     const haptic = window.Telegram?.WebApp?.HapticFeedback;
@@ -50,9 +91,23 @@ function App() {
   }
 
   const showToast = (message) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current)
+    }
     setToast(message);
-    setTimeout(() => setToast(null), 3000);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null)
+      toastTimeoutRef.current = null
+    }, 3000);
   }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     // Initialize Telegram WebApp
@@ -67,13 +122,13 @@ function App() {
     }
   }, [])
 
-  const fetchCollection = async () => {
-    if (!user || fetchingCollection) return;
+  const fetchCollection = async (userId = user?.id) => {
+    if (!userId || fetchingCollection) return;
     setFetchingCollection(true);
     try {
       setLastError(null);
-      const response = await axios.get(`${BACKEND_URL}/collection?user_id=${user.id}`);
-      setCollection(response.data);
+      const data = await fetchCollectionData(userId)
+      setCollection(data);
     } catch (error) {
       console.error("Error fetching collection:", error);
       const msg = error.response?.data?.detail || error.message || 'Network Error';
@@ -86,22 +141,16 @@ function App() {
 
   const fetchLeaderboard = async (mode = lbMode) => {
     try {
-      const res = await axios.get(`${BACKEND_URL}/leaderboard?mode=${mode}`)
-      setLeaderboard(res.data)
+      const data = await fetchLeaderboardData(mode)
+      setLeaderboard(data)
     } catch (e) { console.error(e) }
   }
 
-  const fetchSeason = async (uid) => {
+  const fetchSeason = async (uid = user?.id) => {
+    if (!uid) return;
     try {
-      const res = await axios.get(`${BACKEND_URL}/season?user_id=${uid}`)
-      setSeason(res.data)
-    } catch (e) { console.error(e) }
-  }
-
-  const fetchReferral = async (uid) => {
-    try {
-      const res = await axios.get(`${BACKEND_URL}/referral/link?user_id=${uid}`)
-      setReferralData(res.data)
+      const data = await fetchSeasonData(uid)
+      setSeason(data)
     } catch (e) { console.error(e) }
   }
 
@@ -113,7 +162,7 @@ function App() {
       const res = await axios.post(`${BACKEND_URL}/season/claim?user_id=${user.id}&task_id=${taskId}`)
       showToast(res.data.message)
       updateStats(res.data.user_stats)
-      fetchSeason(user.id)
+      await fetchSeason(user.id)
     } catch (e) {
       showToast(e.response?.data?.detail || 'Помилка')
     } finally {
@@ -121,62 +170,127 @@ function App() {
     }
   }
 
-  const fetchUserStats = async () => {
-    if (!user) return;
+  const fetchUserStats = async (currentUser = user) => {
+    if (!currentUser) return;
     try {
-      const params = new URLSearchParams({
-        user_id: user.id,
-        username: user.username || '',
-        first_name: user.first_name || ''
-      });
-      const response = await axios.get(`${BACKEND_URL}/user?${params.toString()}`)
-      setUserStats(response.data)
+      const data = await fetchUserStateData(currentUser)
+      setUserStats(data)
     } catch (error) {
       console.error("Error fetching user stats:", error)
     }
   }
 
   useEffect(() => {
-    if (activeTab === 'collection') fetchCollection()
-    if (activeTab === 'leaderboard') fetchLeaderboard(lbMode)
-    if (activeTab === 'events' && user) fetchSeason(user.id)
-    if (activeTab === 'referral' && user) fetchReferral(user.id)
-  }, [activeTab, user])
+    const syncActiveTab = async () => {
+      if (activeTab === 'collection' && user?.id) {
+        setFetchingCollection(true)
+        try {
+          setLastError(null)
+          setCollection(await fetchCollectionData(user.id))
+        } catch (error) {
+          console.error("Error fetching collection:", error)
+          const msg = error.response?.data?.detail || error.message || 'Network Error'
+          setLastError(msg)
+          showToast(`Помилка: ${msg}`)
+        } finally {
+          setFetchingCollection(false)
+        }
+      }
+
+      if (activeTab === 'leaderboard') {
+        try {
+          setLeaderboard(await fetchLeaderboardData(lbMode))
+        } catch (error) {
+          console.error("Error fetching leaderboard:", error)
+        }
+      }
+
+      if (activeTab === 'events' && user?.id) {
+        try {
+          setSeason(await fetchSeasonData(user.id))
+        } catch (error) {
+          console.error("Error fetching season:", error)
+        }
+      }
+
+      if (activeTab === 'referral' && user?.id) {
+        try {
+          setReferralData(await fetchReferralData(user.id))
+        } catch (error) {
+          console.error("Error fetching referral data:", error)
+        }
+      }
+    }
+
+    void syncActiveTab()
+  }, [activeTab, lbMode, user])
 
   useEffect(() => {
     if (user) {
-      fetchUserStats()
-      fetchCollection() // Load immediately on start to prevent 0-count anxiety
-      
-      // Check for referral in start param
-      const tg = window.Telegram?.WebApp;
-      const startParam = tg?.initDataUnsafe?.start_param || '';
-      if (startParam.startsWith('ref_')) {
-        const refId = parseInt(startParam.replace('ref_', ''), 10);
-        if (refId && refId !== user.id) {
-          axios.post(`${BACKEND_URL}/referral/claim?user_id=${user.id}&ref_id=${refId}`)
-            .then(r => showToast(r.data.message))
-            .catch(() => {}); // silently fail if already referred
+      const initializeUser = async () => {
+        try {
+          setUserStats(await fetchUserStateData(user))
+        } catch (error) {
+          console.error("Error fetching user stats:", error)
+        }
+
+        setFetchingCollection(true)
+        try {
+          setLastError(null)
+          setCollection(await fetchCollectionData(user.id))
+        } catch (error) {
+          console.error("Error fetching collection:", error)
+          const msg = error.response?.data?.detail || error.message || 'Network Error'
+          setLastError(msg)
+          showToast(`Помилка: ${msg}`)
+        } finally {
+          setFetchingCollection(false)
+        }
+
+        const tg = window.Telegram?.WebApp;
+        const startParam = tg?.initDataUnsafe?.start_param || '';
+        if (startParam.startsWith('ref_')) {
+          const refId = parseInt(startParam.replace('ref_', ''), 10);
+          if (refId && refId !== user.id) {
+            axios.post(`${BACKEND_URL}/referral/claim?user_id=${user.id}&ref_id=${refId}`)
+              .then(r => showToast(r.data.message))
+              .catch(() => {});
+          }
         }
       }
+
+      void initializeUser()
     }
   }, [user])
 
   // Live Countdown Timer
   useEffect(() => {
+    if (!user) return;
+    let refreshTimeoutId = null
+
     const timer = setInterval(() => {
       setUserStats(prev => {
         if (prev.next_energy_in_seconds <= 0) return prev;
         
         const newTime = prev.next_energy_in_seconds - 1;
-        // Auto-refresh stats when the timer hits zero to restore energy!
-        if (newTime === 0 && user) {
-          setTimeout(fetchUserStats, 1000);
+        if (newTime === 0) {
+          refreshTimeoutId = setTimeout(async () => {
+            try {
+              setUserStats(await fetchUserStateData(user))
+            } catch (error) {
+              console.error("Error refreshing user stats:", error)
+            }
+          }, 1000);
         }
         return { ...prev, next_energy_in_seconds: newTime };
       });
     }, 1000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer)
+      if (refreshTimeoutId) {
+        clearTimeout(refreshTimeoutId)
+      }
+    };
   }, [user]);
 
   const formatTime = (totalSeconds) => {
@@ -329,7 +443,7 @@ function App() {
   }, [collection]);
 
   if (gameActive) {
-    return <DroneGame user={user} triggerHaptic={triggerHaptic} onClose={(score) => { setGameActive(false); fetchUserStats(); }} />
+    return <DroneGame user={user} triggerHaptic={triggerHaptic} onClose={() => { setGameActive(false); void fetchUserStats(); }} />
   }
 
   return (
@@ -464,15 +578,16 @@ function App() {
                 <h2 
                   className="text-xl font-black tracking-tight cursor-pointer active:scale-95"
                   onClick={() => {
-                    setDebugClickCount(prev => {
-                      if (prev + 1 >= 5) { setDebugMode(true); return 0; }
-                      return prev + 1;
-                    })
+                    debugClickCountRef.current += 1
+                    if (debugClickCountRef.current >= 5) {
+                      debugClickCountRef.current = 0
+                      setDebugMode(prev => !prev)
+                    }
                   }}
                 >ТВОЇ ЗДОБУТКИ</h2>
                 <div className="flex items-center gap-2 mt-0.5">
                   <button 
-                    onClick={fetchCollection} 
+                    onClick={() => { void fetchCollection() }} 
                     disabled={fetchingCollection}
                     className="text-[8px] font-bold text-blue-500/60 uppercase tracking-tighter text-left active:text-blue-400"
                   >
@@ -551,9 +666,9 @@ function App() {
             <div className="flex flex-col gap-2 pb-20">
               {leaderboard.length > 0 ? leaderboard.map((player, idx) => (
                 <div 
-                  key={player.id} 
+                  key={player.user_id} 
                   className={`flex items-center gap-4 p-4 rounded-[1.8rem] border transition-all ${
-                    player.id === user?.id 
+                    player.user_id === user?.id 
                     ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.1)]' 
                     : 'bg-slate-900/40 border-slate-800/80'
                   }`}
@@ -567,9 +682,9 @@ function App() {
                     {idx + 1}
                   </div>
                   <div className="flex-1">
-                    <div className="font-bold text-sm truncate">{player.id === user?.id ? 'Ти' : (player.first_name || 'Гравець')}</div>
+                    <div className="font-bold text-sm truncate">{player.user_id === user?.id ? 'Ти' : (player.name || 'Гравець')}</div>
                     <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                      {lbMode === 'cards' ? `${player.total_cards} Карт` : `${player.total_spins} Спінів`}
+                      {player.score} {player.label}
                     </div>
                   </div>
                   <div className="text-xl">{idx === 0 ? '👑' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : ''}</div>
@@ -590,7 +705,7 @@ function App() {
                 <div className="flex flex-col gap-4">
                   {/* Drone Dash Card */}
                   <div 
-                    onClick={() => { setGameActive(true); triggerHaptic('impact'); }}
+                    onClick={() => { setGameActive(true); triggerHaptic('medium'); }}
                     className="group relative bg-gradient-to-br from-cyan-600/30 to-blue-600/10 border border-cyan-500/40 rounded-[2rem] p-5 overflow-hidden active:scale-95 transition-all cursor-pointer shadow-xl"
                   >
                     <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-125 transition-transform">🛸</div>
@@ -655,7 +770,17 @@ function App() {
                         </div>
                         <span className="text-[10px] font-black text-slate-500 shrink-0">{task.progress}/{task.target}</span>
                         {task.completed && !task.claimed && (
-                          <button onClick={() => claimSeasonTask(task.id)} className="px-3 py-1 bg-emerald-500 text-black text-[9px] font-black rounded-lg active:scale-90 transition-all">OK</button>
+                          <button
+                            onClick={() => claimSeasonTask(task.id)}
+                            disabled={claimingTask === task.id}
+                            className={`px-3 py-1 text-[9px] font-black rounded-lg active:scale-90 transition-all ${
+                              claimingTask === task.id
+                                ? 'bg-emerald-900/40 text-emerald-300 cursor-wait'
+                                : 'bg-emerald-500 text-black'
+                            }`}
+                          >
+                            {claimingTask === task.id ? '...' : 'OK'}
+                          </button>
                         )}
                       </div>
                     </div>
@@ -762,38 +887,43 @@ function App() {
 const DroneGame = ({ user, onClose, triggerHaptic }) => {
   const canvasRef = useRef(null)
   const droneImgRef = useRef(null)
-  // Day Assets Refs
-   const dayBgRef = useRef(null)
-   const cloudsRef = useRef(null)
-   const lightsRef = useRef(null)
-   const conesRef = useRef(null)
-  
-  const [gameState, setGameState] = useState('START') // START, PLAYING, GAMEOVER
-   const [score, setScore] = useState(0)
-   const [highScore, setHighScore] = useState(parseInt(localStorage.getItem('drone_highscore') || '0'))
-   const [rewardClaimed, setRewardClaimed] = useState(false)
-   const [droneType, setDroneType] = useState('RED') // RED or STEALTH
+  const dayBgRef = useRef(null)
+  const cloudsRef = useRef(null)
+  const lightsRef = useRef(null)
+  const conesRef = useRef(null)
 
-  // Game Constants
+  const [gameState, setGameState] = useState('START')
+  const [score, setScore] = useState(0)
+  const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem('drone_highscore') || '0', 10))
+  const [rewardClaimed, setRewardClaimed] = useState(false)
+
   const GRAVITY = 0.2
   const JUMP = -4.5
   const PIPE_SPEED = 3.0
-  const PIPE_SPAWN_RATE = 110 // frames
+  const PIPE_SPAWN_RATE = 110
   const PIPE_WIDTH = 50
   const GAP_SIZE = 170
 
-  const requestRef = useRef()
-  const birdRef = useRef({ x: 50, y: 250, velocity: 0, width: 44, height: 44 })
+  const requestRef = useRef(null)
+  const birdRef = useRef({ ...INITIAL_BIRD })
   const pipesRef = useRef([])
   const frameCountRef = useRef(0)
+  const scoreRef = useRef(0)
+  const highScoreRef = useRef(parseInt(localStorage.getItem('drone_highscore') || '0', 10))
+  const rewardClaimedRef = useRef(false)
+  const pendingRewardRef = useRef(false)
+  const gameStateRef = useRef('START')
+  const droneTypeRef = useRef('RED')
+  const gameOverHandledRef = useRef(false)
 
   useEffect(() => {
-    // Load All Game Assets (Single Source of Truth)
     const V = '1.4'
     const loadImg = (src, ref) => {
-        const img = new Image(); img.src = `${src}?v=${V}`; 
-        img.onload = () => { ref.current = img }
+      const img = new Image()
+      img.src = `${src}?v=${V}`
+      img.onload = () => { ref.current = img }
     }
+
     loadImg('/drone.png', droneImgRef)
     loadImg('/day_theme/day_bg.png', dayBgRef)
     loadImg('/day_theme/clouds.png', cloudsRef)
@@ -802,192 +932,224 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
   }, [])
 
   const startGame = () => {
-    birdRef.current = { x: 50, y: 250, velocity: 0, width: 44, height: 44 }
+    birdRef.current = { ...INITIAL_BIRD }
     pipesRef.current = []
     frameCountRef.current = 0
+    scoreRef.current = 0
+    rewardClaimedRef.current = false
+    pendingRewardRef.current = false
+    gameOverHandledRef.current = false
+    droneTypeRef.current = pickRandomItem(DRONE_TYPES)
+    gameStateRef.current = 'PLAYING'
+
     setScore(0)
     setRewardClaimed(false)
-    setDroneType(Math.random() > 0.5 ? 'RED' : 'STEALTH')
     setGameState('PLAYING')
   }
 
   const jump = () => {
-    if (gameState === 'PLAYING') {
+    if (gameStateRef.current === 'PLAYING') {
       birdRef.current.velocity = JUMP
       triggerHaptic('selection')
-    } else if (gameState === 'START' || gameState === 'GAMEOVER') {
+      return
+    }
+
+    if (gameStateRef.current === 'START' || gameStateRef.current === 'GAMEOVER') {
       startGame()
     }
   }
 
-  const update = () => {
-    if (gameState !== 'PLAYING') return
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
 
-    birdRef.current.velocity += GRAVITY
-    birdRef.current.y += birdRef.current.velocity
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-    if (birdRef.current.y < 0 || birdRef.current.y > 600) {
-      endGame()
-    }
+    const claimRewardIfNeeded = async (finalScore) => {
+      if (!user || rewardClaimedRef.current || pendingRewardRef.current) return
 
-    frameCountRef.current++
-    if (frameCountRef.current % PIPE_SPAWN_RATE === 0) {
-      const minPipeHeight = 50
-      const maxPipeHeight = 300
-      const height = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1)) + minPipeHeight
-      const type = Math.random() > 0.5 ? 'LIGHT' : 'CONE'
-      pipesRef.current.push({ x: 400, top: height, bottom: height + GAP_SIZE, passed: false, type })
-    }
+      const coins = Math.floor(finalScore / 5)
+      if (coins <= 0) return
 
-    pipesRef.current.forEach(pipe => {
-      pipe.x -= PIPE_SPEED
-      if (
-        birdRef.current.x + birdRef.current.width > pipe.x &&
-        birdRef.current.x < pipe.x + PIPE_WIDTH &&
-        (birdRef.current.y < pipe.top || birdRef.current.y + birdRef.current.height > pipe.bottom)
-      ) {
-        endGame()
+      pendingRewardRef.current = true
+      try {
+        await axios.post(`${BACKEND_URL}/games/drone/reward`, { user_id: user.id, score: finalScore, coins })
+        rewardClaimedRef.current = true
+        setRewardClaimed(true)
+      } catch (error) {
+        console.error("Reward error", error)
+      } finally {
+        pendingRewardRef.current = false
       }
-      if (!pipe.passed && birdRef.current.x > pipe.x + PIPE_WIDTH) {
-        pipe.passed = true
-        setScore(s => s + 1)
+    }
+
+    const endGame = () => {
+      if (gameOverHandledRef.current) return
+
+      gameOverHandledRef.current = true
+      gameStateRef.current = 'GAMEOVER'
+      setGameState('GAMEOVER')
+      triggerHaptic('error')
+
+      const finalScore = scoreRef.current
+      if (finalScore > highScoreRef.current) {
+        highScoreRef.current = finalScore
+        setHighScore(finalScore)
+        localStorage.setItem('drone_highscore', finalScore.toString())
       }
-    })
-    pipesRef.current = pipesRef.current.filter(p => p.x > -PIPE_WIDTH)
-  }
 
-  const endGame = () => {
-    setGameState('GAMEOVER')
-    triggerHaptic('error')
-    if (score > highScore) {
-      setHighScore(score)
-      localStorage.setItem('drone_highscore', score.toString())
-    }
-    if (score >= 5) claimReward(score)
-  }
-
-  const claimReward = async (finalScore) => {
-    if (!user || rewardClaimed) return
-    const coins = Math.floor(finalScore / 5)
-    if (coins <= 0) return
-    try {
-      await axios.post(`${BACKEND_URL}/games/drone/reward`, { user_id: user.id, score: finalScore, coins })
-      setRewardClaimed(true)
-    } catch (e) {
-      console.error("Reward error", e)
-    }
-  }
-
-  const draw = (ctx) => {
-    const cw = ctx.canvas.width
-    const ch = ctx.canvas.height
-    ctx.clearRect(0, 0, cw, ch)
-    
-    // Day Sky (Base Color)
-    ctx.fillStyle = '#29abe2' 
-    ctx.fillRect(0, 0, cw, ch)
-
-    // Sun (Solid Pixel-Art Diamond - NO ALPHA SHADES)
-    ctx.fillStyle = '#fef08a'
-    const sunX = 330, sunY = 70
-    for(let r=-2; r<=2; r++) {
-        for(let c=-2; c<=2; c++) {
-            if(Math.abs(r) + Math.abs(c) <= 2) {
-                ctx.fillRect(sunX + c*12 - 6, sunY + r*12 - 6, 12, 12)
-            }
-        }
+      if (finalScore >= 5) {
+        void claimRewardIfNeeded(finalScore)
+      }
     }
 
-    // Unified Pixel-Art Clouds (Solid White - NO ALPHA SHADES)
     const drawPixelCloud = (x, y) => {
-        ctx.fillStyle = '#ffffff'
-        const unit = 6
-        ctx.fillRect(x, y, unit * 6, unit * 3)
-        ctx.fillRect(x - unit, y + unit, unit * 8, unit * 2)
-        ctx.fillRect(x + unit, y - unit, unit * 4, unit)
+      ctx.fillStyle = '#ffffff'
+      const unit = 6
+      ctx.fillRect(x, y, unit * 6, unit * 3)
+      ctx.fillRect(x - unit, y + unit, unit * 8, unit * 2)
+      ctx.fillRect(x + unit, y - unit, unit * 4, unit)
     }
 
-    for(let i=0; i<3; i++) {
+    const loop = () => {
+      if (gameStateRef.current === 'PLAYING') {
+        birdRef.current.velocity += GRAVITY
+        birdRef.current.y += birdRef.current.velocity
+
+        if (birdRef.current.y < 0 || birdRef.current.y > 600) {
+          endGame()
+        }
+
+        if (gameStateRef.current === 'PLAYING') {
+          frameCountRef.current += 1
+
+          if (frameCountRef.current % PIPE_SPAWN_RATE === 0) {
+            const height = getRandomIntInclusive(50, 300)
+            const type = pickRandomItem(OBSTACLE_TYPES)
+            pipesRef.current.push({ x: 400, top: height, bottom: height + GAP_SIZE, passed: false, type })
+          }
+
+          let didCollide = false
+
+          for (const pipe of pipesRef.current) {
+            pipe.x -= PIPE_SPEED
+
+            const hitObstacle =
+              birdRef.current.x + birdRef.current.width > pipe.x &&
+              birdRef.current.x < pipe.x + PIPE_WIDTH &&
+              (birdRef.current.y < pipe.top || birdRef.current.y + birdRef.current.height > pipe.bottom)
+
+            if (hitObstacle) {
+              didCollide = true
+              break
+            }
+
+            if (!pipe.passed && birdRef.current.x > pipe.x + PIPE_WIDTH) {
+              pipe.passed = true
+              scoreRef.current += 1
+              setScore(scoreRef.current)
+            }
+          }
+
+          if (didCollide) {
+            endGame()
+          }
+
+          pipesRef.current = pipesRef.current.filter(pipe => pipe.x > -PIPE_WIDTH)
+        }
+      }
+
+      const cw = ctx.canvas.width
+      const ch = ctx.canvas.height
+      ctx.clearRect(0, 0, cw, ch)
+
+      ctx.fillStyle = '#29abe2'
+      ctx.fillRect(0, 0, cw, ch)
+
+      ctx.fillStyle = '#fef08a'
+      const sunX = 330
+      const sunY = 70
+      for (let r = -2; r <= 2; r += 1) {
+        for (let c = -2; c <= 2; c += 1) {
+          if (Math.abs(r) + Math.abs(c) <= 2) {
+            ctx.fillRect(sunX + c * 12 - 6, sunY + r * 12 - 6, 12, 12)
+          }
+        }
+      }
+
+      for (let i = 0; i < 3; i += 1) {
         const x = (i * 350 - (frameCountRef.current * 0.4) % 1050)
         const y = 80 + (i % 2) * 60
         drawPixelCloud(x, y)
         drawPixelCloud(x + 180, y - 40)
-    }
-
-    // Daytime City (Parallax - Clipped to avoid baked sky)
-    if (dayBgRef.current && dayBgRef.current.complete) {
-        const bgX = -(frameCountRef.current * 0.8) % 800
-        // Draw only the bottom part of the asset (buildings) to avoid sky mismatch
-        // Assuming buildings are in the bottom 2/3 of the 800x380 asset
-        ctx.drawImage(dayBgRef.current, 0, 150, 800, 230, bgX, 320, 800, 230)
-        ctx.drawImage(dayBgRef.current, 0, 150, 800, 230, bgX + 800, 320, 800, 230)
-    }
-
-    // Street Floor
-    ctx.fillStyle = '#334155'
-    ctx.fillRect(0, 550, 400, 50)
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
-    for(let i=0; i<10; i++) {
-        const x = (i * 80 - (frameCountRef.current * PIPE_SPEED) % 80)
-        ctx.fillRect(x, 573, 40, 4)
-    }
-
-    // Obstacles (Randomized)
-    pipesRef.current.forEach(pipe => {
-      ctx.fillStyle = '#475569' // Pole color
-      
-      const drawObstacle = (yPosition, isTop) => {
-          if (pipe.type === 'LIGHT' && lightsRef.current) {
-              const sx = isTop ? 160 : 64 // Use different frames for variety
-              ctx.drawImage(lightsRef.current, sx, 0, 32, 64, pipe.x + 9, isTop ? yPosition - 64 : yPosition, 32, 64)
-          } else if (pipe.type === 'CONE' && conesRef.current) {
-              ctx.drawImage(conesRef.current, 0, 0, 32, 32, pipe.x + 9, isTop ? yPosition - 32 : yPosition, 32, 32)
-          }
       }
 
-      // Top Obstacle
-      ctx.fillRect(pipe.x + 22, 0, 6, pipe.top)
-      drawObstacle(pipe.top, true)
-      
-      // Bottom Obstacle
-      ctx.fillRect(pipe.x + 22, pipe.bottom, 6, 600 - pipe.bottom)
-      drawObstacle(pipe.bottom, false)
-    })
+      if (dayBgRef.current && dayBgRef.current.complete) {
+        const bgX = -(frameCountRef.current * 0.8) % 800
+        ctx.drawImage(dayBgRef.current, 0, 150, 800, 230, bgX, 320, 800, 230)
+        ctx.drawImage(dayBgRef.current, 0, 150, 800, 230, bgX + 800, 320, 800, 230)
+      }
 
-    // Bird (Drone)
-    ctx.save()
-    ctx.translate(birdRef.current.x + birdRef.current.width/2, birdRef.current.y + birdRef.current.height/2)
-    ctx.rotate(Math.min(0.5, Math.max(-0.5, birdRef.current.velocity * 0.1)))
-    
-    if (droneImgRef.current) {
+      ctx.fillStyle = '#334155'
+      ctx.fillRect(0, 550, 400, 50)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
+      for (let i = 0; i < 10; i += 1) {
+        const x = (i * 80 - (frameCountRef.current * PIPE_SPEED) % 80)
+        ctx.fillRect(x, 573, 40, 4)
+      }
+
+      pipesRef.current.forEach(pipe => {
+        ctx.fillStyle = '#475569'
+
+        const drawObstacle = (yPosition, isTop) => {
+          if (pipe.type === 'LIGHT' && lightsRef.current) {
+            const sx = isTop ? 160 : 64
+            ctx.drawImage(lightsRef.current, sx, 0, 32, 64, pipe.x + 9, isTop ? yPosition - 64 : yPosition, 32, 64)
+          } else if (pipe.type === 'CONE' && conesRef.current) {
+            ctx.drawImage(conesRef.current, 0, 0, 32, 32, pipe.x + 9, isTop ? yPosition - 32 : yPosition, 32, 32)
+          }
+        }
+
+        ctx.fillRect(pipe.x + 22, 0, 6, pipe.top)
+        drawObstacle(pipe.top, true)
+        ctx.fillRect(pipe.x + 22, pipe.bottom, 6, 600 - pipe.bottom)
+        drawObstacle(pipe.bottom, false)
+      })
+
+      ctx.save()
+      ctx.translate(birdRef.current.x + birdRef.current.width / 2, birdRef.current.y + birdRef.current.height / 2)
+      ctx.rotate(Math.min(0.5, Math.max(-0.5, birdRef.current.velocity * 0.1)))
+
+      if (droneImgRef.current) {
         const frameWidth = droneImgRef.current.width / 2
         const frameHeight = droneImgRef.current.height / 2
-        const sx = (frameIndex % 2) * frameWidth
-        const sy = Math.floor(frameIndex / 2) * frameHeight
-        
-        ctx.drawImage(
-            droneImgRef.current,
-            sx, sy, frameWidth, frameHeight,
-            -birdRef.current.width/2, -birdRef.current.height/2, birdRef.current.width, birdRef.current.height
-        )
-    } else {
-        ctx.fillStyle = '#f97316'
-        ctx.fillRect(-birdRef.current.width/2, -birdRef.current.height/2, birdRef.current.width, birdRef.current.height)
-    }
-    ctx.restore()
-  }
+        const animationFrame = Math.floor(frameCountRef.current / 8) % 2
+        const spriteRow = droneTypeRef.current === 'STEALTH' ? 1 : 0
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    const loop = () => {
-      update()
-      draw(ctx)
+        ctx.drawImage(
+          droneImgRef.current,
+          animationFrame * frameWidth,
+          spriteRow * frameHeight,
+          frameWidth,
+          frameHeight,
+          -birdRef.current.width / 2,
+          -birdRef.current.height / 2,
+          birdRef.current.width,
+          birdRef.current.height
+        )
+      } else {
+        ctx.fillStyle = '#f97316'
+        ctx.fillRect(-birdRef.current.width / 2, -birdRef.current.height / 2, birdRef.current.width, birdRef.current.height)
+      }
+
+      ctx.restore()
       requestRef.current = requestAnimationFrame(loop)
     }
+
     requestRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(requestRef.current)
-  }, [gameState])
+  }, [triggerHaptic, user])
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center touch-none select-none" onClick={jump}>
