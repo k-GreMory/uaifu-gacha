@@ -763,9 +763,10 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
   const canvasRef = useRef(null)
   const droneImgRef = useRef(null)
   // Day Assets Refs
-  const dayBgRef = useRef(null)
-  const cloudsRef = useRef(null)
-  const lightsRef = useRef(null)
+   const dayBgRef = useRef(null)
+   const cloudsRef = useRef(null)
+   const lightsRef = useRef(null)
+   const conesRef = useRef(null)
   
   const [gameState, setGameState] = useState('START') // START, PLAYING, GAMEOVER
   const [score, setScore] = useState(0)
@@ -793,6 +794,7 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     const bg = new Image(); bg.src = '/day_theme/day_bg.png'; bg.onload = () => { dayBgRef.current = bg }
     const cl = new Image(); cl.src = '/day_theme/clouds.png'; cl.onload = () => { cloudsRef.current = cl }
     const lt = new Image(); lt.src = '/day_theme/traffic_lights.png'; lt.onload = () => { lightsRef.current = lt }
+    const cn = new Image(); cn.src = '/day_theme/traffic_cones.png'; cn.onload = () => { conesRef.current = cn }
   }, [])
 
   const startGame = () => {
@@ -828,7 +830,8 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
       const minPipeHeight = 50
       const maxPipeHeight = 300
       const height = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1)) + minPipeHeight
-      pipesRef.current.push({ x: 400, top: height, bottom: height + GAP_SIZE, passed: false })
+      const type = Math.random() > 0.5 ? 'LIGHT' : 'CONE'
+      pipesRef.current.push({ x: 400, top: height, bottom: height + GAP_SIZE, passed: false, type })
     }
 
     pipesRef.current.forEach(pipe => {
@@ -883,15 +886,14 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     ctx.beginPath(); ctx.arc(330, 70, 30, 0, Math.PI * 2); ctx.fill()
     ctx.shadowBlur = 0
 
-    // Clouds (Procedural for perfect transparency)
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
-    for(let i=0; i<5; i++) {
-        const x = (i * 250 - (frameCountRef.current * 0.3) % 1250)
-        const y = 50 + (i % 3) * 40
-        // Simple 3-circle cloud
-        ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI*2); ctx.fill()
-        ctx.beginPath(); ctx.arc(x+15, y-10, 22, 0, Math.PI*2); ctx.fill()
-        ctx.beginPath(); ctx.arc(x+30, y, 20, 0, Math.PI*2); ctx.fill()
+    // Unified Clouds (Parallax Asset Only)
+    if (cloudsRef.current) {
+        const x = -(frameCountRef.current * 0.4) % 1200
+        ctx.globalAlpha = 0.7
+        ctx.drawImage(cloudsRef.current, x, 40, 600, 150)
+        ctx.drawImage(cloudsRef.current, x + 600, 70, 600, 150)
+        ctx.drawImage(cloudsRef.current, x + 1200, 40, 600, 150)
+        ctx.globalAlpha = 1.0
     }
 
     // Daytime City (Parallax)
@@ -910,21 +912,26 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
         ctx.fillRect(x, 573, 40, 4)
     }
 
-    // Obstacles (Traffic Lights)
+    // Obstacles (Randomized)
     pipesRef.current.forEach(pipe => {
       ctx.fillStyle = '#475569' // Pole color
       
+      const drawObstacle = (yPosition, isTop) => {
+          if (pipe.type === 'LIGHT' && lightsRef.current) {
+              const sx = isTop ? 160 : 64 // Use different frames for variety
+              ctx.drawImage(lightsRef.current, sx, 0, 32, 64, pipe.x + 9, isTop ? yPosition - 64 : yPosition, 32, 64)
+          } else if (pipe.type === 'CONE' && conesRef.current) {
+              ctx.drawImage(conesRef.current, 0, 0, 32, 32, pipe.x + 9, isTop ? yPosition - 32 : yPosition, 32, 32)
+          }
+      }
+
       // Top Obstacle
       ctx.fillRect(pipe.x + 22, 0, 6, pipe.top)
-      if (lightsRef.current) {
-          ctx.drawImage(lightsRef.current, 160, 0, 32, 64, pipe.x + 9, pipe.top - 64, 32, 64)
-      }
+      drawObstacle(pipe.top, true)
       
       // Bottom Obstacle
       ctx.fillRect(pipe.x + 22, pipe.bottom, 6, 600 - pipe.bottom)
-      if (lightsRef.current) {
-          ctx.drawImage(lightsRef.current, 160, 0, 32, 64, pipe.x + 9, pipe.bottom, 32, 64)
-      }
+      drawObstacle(pipe.bottom, false)
     })
 
     // Bird (Drone)
