@@ -761,6 +761,7 @@ function App() {
 // --- MINIGAME: DRONE DASH ---
 const DroneGame = ({ user, onClose, triggerHaptic }) => {
   const canvasRef = useRef(null)
+  const droneImgRef = useRef(null)
   const [gameState, setGameState] = useState('START') // START, PLAYING, GAMEOVER
   const [score, setScore] = useState(0)
   const [highScore, setHighScore] = useState(parseInt(localStorage.getItem('drone_highscore') || '0'))
@@ -775,12 +776,18 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
   const GAP_SIZE = 170
 
   const requestRef = useRef()
-  const birdRef = useRef({ x: 50, y: 250, velocity: 0, width: 34, height: 24 })
+  const birdRef = useRef({ x: 50, y: 250, velocity: 0, width: 44, height: 44 }) // Slightly larger for better sprite fit
   const pipesRef = useRef([])
   const frameCountRef = useRef(0)
 
+  useEffect(() => {
+    const img = new Image()
+    img.src = '/drone.png'
+    img.onload = () => { droneImgRef.current = img }
+  }, [])
+
   const startGame = () => {
-    birdRef.current = { x: 50, y: 250, velocity: 0, width: 34, height: 24 }
+    birdRef.current = { x: 50, y: 250, velocity: 0, width: 44, height: 44 }
     pipesRef.current = []
     frameCountRef.current = 0
     setScore(0)
@@ -878,21 +885,28 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
 
     // Bird (Drone)
     ctx.save()
-    ctx.translate(birdRef.current.x + 17, birdRef.current.y + 12)
+    ctx.translate(birdRef.current.x + birdRef.current.width/2, birdRef.current.y + birdRef.current.height/2)
     ctx.rotate(Math.min(0.5, Math.max(-0.5, birdRef.current.velocity * 0.1)))
     
-    ctx.fillStyle = '#f8fafc'
-    ctx.beginPath()
-    ctx.roundRect(-17, -8, 34, 16, 8)
-    ctx.fill()
-    ctx.fillStyle = '#0ea5e9'
-    ctx.fillRect(-12, -4, 24, 2)
-    // Propellers (Simulated)
-    ctx.strokeStyle = '#64748b'
-    ctx.lineWidth = 2
-    const propAnim = Math.sin(frameCountRef.current * 0.5) * 4
-    ctx.beginPath(); ctx.moveTo(-15, -8); ctx.lineTo(-15, -12 + propAnim); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(15, -8); ctx.lineTo(15, -12 + propAnim); ctx.stroke();
+    if (droneImgRef.current) {
+        // Sprite sheet logic: 2x2 grid (using 3 frames)
+        const frameWidth = droneImgRef.current.width / 2
+        const frameHeight = droneImgRef.current.height / 2
+        const frameIndex = Math.floor(frameCountRef.current / 5) % 3 // Cycle 3 frames
+        
+        const sx = (frameIndex % 2) * frameWidth
+        const sy = Math.floor(frameIndex / 2) * frameHeight
+        
+        ctx.drawImage(
+            droneImgRef.current,
+            sx, sy, frameWidth, frameHeight, // source
+            -birdRef.current.width/2, -birdRef.current.height/2, birdRef.current.width, birdRef.current.height // dest
+        )
+    } else {
+        // Fallback procedural
+        ctx.fillStyle = '#0ea5e9'
+        ctx.fillRect(-birdRef.current.width/2, -birdRef.current.height/2, birdRef.current.width, birdRef.current.height)
+    }
     ctx.restore()
   }
 
