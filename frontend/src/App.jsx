@@ -769,9 +769,10 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
    const conesRef = useRef(null)
   
   const [gameState, setGameState] = useState('START') // START, PLAYING, GAMEOVER
-  const [score, setScore] = useState(0)
-  const [highScore, setHighScore] = useState(parseInt(localStorage.getItem('drone_highscore') || '0'))
-  const [rewardClaimed, setRewardClaimed] = useState(false)
+   const [score, setScore] = useState(0)
+   const [highScore, setHighScore] = useState(parseInt(localStorage.getItem('drone_highscore') || '0'))
+   const [rewardClaimed, setRewardClaimed] = useState(false)
+   const [droneType, setDroneType] = useState('RED') // RED or STEALTH
 
   // Game Constants
   const GRAVITY = 0.2
@@ -790,11 +791,13 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     // Load Drone
     const img = new Image(); img.src = '/drone.png'; img.onload = () => { droneImgRef.current = img }
     
-    // Load Day Theme
-    const bg = new Image(); bg.src = '/day_theme/day_bg.png'; bg.onload = () => { dayBgRef.current = bg }
-    const cl = new Image(); cl.src = '/day_theme/clouds.png'; cl.onload = () => { cloudsRef.current = cl }
-    const lt = new Image(); lt.src = '/day_theme/traffic_lights.png'; lt.onload = () => { lightsRef.current = lt }
-    const cn = new Image(); cn.src = '/day_theme/traffic_cones.png'; cn.onload = () => { conesRef.current = cn }
+    // Load Day Theme (With Cache Busting)
+    const V = '1.2'
+    const bg = new Image(); bg.src = `/day_theme/day_bg.png?v=${V}`; bg.onload = () => { dayBgRef.current = bg }
+    const cl = new Image(); cl.src = `/day_theme/clouds.png?v=${V}`; cl.onload = () => { cloudsRef.current = cl }
+    const lt = new Image(); lt.src = `/day_theme/traffic_lights.png?v=${V}`; lt.onload = () => { lightsRef.current = lt }
+    const cn = new Image(); cn.src = `/day_theme/traffic_cones.png?v=${V}`; cn.onload = () => { conesRef.current = cn }
+    const dr = new Image(); dr.src = `/drone.png?v=${V}`; dr.onload = () => { droneImgRef.current = dr }
   }, [])
 
   const startGame = () => {
@@ -803,6 +806,7 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     frameCountRef.current = 0
     setScore(0)
     setRewardClaimed(false)
+    setDroneType(Math.random() > 0.5 ? 'RED' : 'STEALTH')
     setGameState('PLAYING')
   }
 
@@ -880,11 +884,21 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     ctx.fillStyle = '#38bdf8' // Brighter Blue
     ctx.fillRect(0, 0, 400, 600)
 
-    // Sun
-    ctx.shadowBlur = 40; ctx.shadowColor = '#fde047'
-    ctx.fillStyle = '#fff7ed'
-    ctx.beginPath(); ctx.arc(330, 70, 30, 0, Math.PI * 2); ctx.fill()
-    ctx.shadowBlur = 0
+    // Sun (Pixel-Art Style)
+    ctx.fillStyle = '#fef08a'
+    const sunSize = 40
+    const sunX = 330, sunY = 70
+    // Draw a "pixelated" circle with rects
+    for(let r=-2; r<=2; r++) {
+        for(let c=-2; c<=2; c++) {
+            if(Math.abs(r) + Math.abs(c) <= 3) {
+                ctx.fillRect(sunX + c*15 - 7, sunY + r*15 - 7, 16, 16)
+            }
+        }
+    }
+    // Subtle glow without blur-circles
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.3)'
+    ctx.fillRect(sunX-40, sunY-40, 80, 80)
 
     // Unified Clouds (Parallax Asset Only)
     if (cloudsRef.current) {
@@ -942,7 +956,6 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     if (droneImgRef.current) {
         const frameWidth = droneImgRef.current.width / 2
         const frameHeight = droneImgRef.current.height / 2
-        const frameIndex = Math.floor(frameCountRef.current / 5) % 3 
         const sx = (frameIndex % 2) * frameWidth
         const sy = Math.floor(frameIndex / 2) * frameHeight
         
