@@ -900,15 +900,24 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     ctx.fillStyle = 'rgba(254, 240, 138, 0.3)'
     ctx.fillRect(sunX-40, sunY-40, 80, 80)
 
-    // Unified Clouds (Parallax Asset Only)
-    if (cloudsRef.current) {
-        const x = -(frameCountRef.current * 0.4) % 1200
-        ctx.globalAlpha = 0.7
-        ctx.drawImage(cloudsRef.current, x, 40, 600, 150)
-        ctx.drawImage(cloudsRef.current, x + 600, 70, 600, 150)
-        ctx.drawImage(cloudsRef.current, x + 1200, 40, 600, 150)
-        ctx.globalAlpha = 1.0
+    // Unified Pixel-Art Clouds (Procedural for perfect transparency)
+    const drawPixelCloud = (x, y) => {
+        ctx.fillStyle = '#ffffff'
+        const unit = 8
+        // Simple pixel-art cloud shape
+        ctx.fillRect(x, y, unit * 4, unit * 2)
+        ctx.fillRect(x - unit, y + unit, unit * 6, unit * 2)
+        ctx.fillRect(x + unit, y - unit, unit * 2, unit)
     }
+
+    ctx.globalAlpha = 0.6
+    for(let i=0; i<3; i++) {
+        const x = (i * 300 - (frameCountRef.current * 0.5) % 900)
+        const y = 80 + (i % 2) * 50
+        drawPixelCloud(x, y)
+        drawPixelCloud(x + 150, y - 30)
+    }
+    ctx.globalAlpha = 1.0
 
     // Daytime City (Parallax)
     if (dayBgRef.current) {
