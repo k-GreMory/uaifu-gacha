@@ -9,8 +9,7 @@ from urllib.parse import parse_qsl
 from fastapi import HTTPException, Request
 from pydantic import BaseModel
 
-LOCAL_DEV_HOSTS = {"localhost", "127.0.0.1", "::1", "testserver"}
-
+from config import get_bot_token, is_dev_auth_enabled
 
 class TelegramAuthUser(BaseModel):
     id: int
@@ -18,20 +17,6 @@ class TelegramAuthUser(BaseModel):
     first_name: Optional[str] = None
     source: str = "telegram"
     auth_date: Optional[int] = None
-
-
-def _parse_bool(value: Optional[str], default: bool) -> bool:
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _get_bot_token() -> str:
-    token = os.getenv("BOT_TOKEN", "").strip()
-    if not token:
-        raise HTTPException(status_code=500, detail="BOT_TOKEN is not configured")
-    return token
-
 
 def build_telegram_data_check_string(init_data: str) -> tuple[dict[str, str], str]:
     parsed = dict(parse_qsl(init_data, keep_blank_values=True))
@@ -87,17 +72,16 @@ def get_authenticated_telegram_user(request: Request) -> TelegramAuthUser:
     if init_data:
         try:
             max_age_seconds = int(os.getenv("TELEGRAM_AUTH_MAX_AGE_SECONDS", "86400"))
-            return validate_telegram_init_data(init_data, _get_bot_token(), max_age_seconds)
+            bot_token = get_bot_token(required=True)
+            return validate_telegram_init_data(init_data, bot_token, max_age_seconds)
         except HTTPException:
             raise
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
         except Exception as exc:
             raise HTTPException(status_code=401, detail=f"Telegram auth failed: {exc}") from exc
 
-    host = request.url.hostname or ""
-    allow_dev_auth = _parse_bool(
-        os.getenv("ALLOW_DEV_AUTH"),
-        default=host in LOCAL_DEV_HOSTS,
-    )
+    allow_dev_auth = is_dev_auth_enabled()
     if not allow_dev_auth:
         raise HTTPException(status_code=401, detail="Missing Telegram auth data")
 

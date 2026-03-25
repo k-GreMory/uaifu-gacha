@@ -13,16 +13,22 @@ from sqlalchemy.sql.expression import func
 
 import models
 from auth import TelegramAuthUser, get_authenticated_telegram_user
+from config import validate_runtime_configuration
 from database import engine, SessionLocal, get_db
 from cards_data import CARDS, RARITY_CHANCES
 
-from sqladmin import Admin, ModelView, BaseView, expose
+from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
-from starlette.middleware.sessions import SessionMiddleware
 
 load_dotenv()
+RUNTIME_CONFIG = validate_runtime_configuration()
+ADMIN_SECRET = RUNTIME_CONFIG["admin_secret"]
+ADMIN_ENABLED = RUNTIME_CONFIG["admin_enabled"]
+CORS_ALLOW_ORIGINS = RUNTIME_CONFIG["cors_origins"]
+CORS_ALLOW_ORIGIN_REGEX = RUNTIME_CONFIG["cors_origin_regex"]
+if not CORS_ALLOW_ORIGINS and not CORS_ALLOW_ORIGIN_REGEX:
+    CORS_ALLOW_ORIGINS = ["*"]
 
 # Create tables (creates new ones, doesn't migrate existing ones)
 models.Base.metadata.create_all(bind=engine)
@@ -173,7 +179,8 @@ app = FastAPI(title="UAIFU Admin API", version="1.0.0")
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ALLOW_ORIGINS,
+    allow_origin_regex=CORS_ALLOW_ORIGIN_REGEX,
     allow_credentials=False, # Set to False to allow "*" origin if headers/query params are used instead of cookies
     allow_methods=["*"],
     allow_headers=["*"],
@@ -790,7 +797,7 @@ class AdminAuth(AuthenticationBackend):
     async def login(self, request: Request) -> bool:
         form = await request.form()
         secret = form.get("username") # Using username field for the secret key
-        if secret == os.getenv("ADMIN_SECRET"):
+        if ADMIN_SECRET and secret == ADMIN_SECRET:
             request.session.update({"token": secret})
             return True
         return False
@@ -801,20 +808,9 @@ class AdminAuth(AuthenticationBackend):
 
     async def authenticate(self, request: Request) -> bool:
         token = request.session.get("token")
-        if not token or token != os.getenv("ADMIN_SECRET"):
+        if not ADMIN_SECRET or not token or token != ADMIN_SECRET:
             return False
         return True
-
-authentication_backend = AdminAuth(secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
-from sqladmin.authentication import login_required
-
-admin = Admin(
-    app, 
-    engine, 
-    authentication_backend=authentication_backend,
-    templates_dir=TEMPLATES_DIR,
-    title="UAIFU Admin"
-)
 
 class UserAdmin(ModelView, model=models.User):
     name = "Користувач"
@@ -870,14 +866,26 @@ class SeasonTaskAdmin(ModelView, model=models.SeasonTask):
     icon = "fa-solid fa-check-double"
     column_list = ["id", "season_id", "title", "reward_coins", "reward_energy"]
 
-admin.add_view(UserAdmin)
-admin.add_view(CardAdmin)
-admin.add_view(UserCardAdmin)
-admin.add_view(SpinLogAdmin)
-admin.add_view(PurchaseLogAdmin)
-admin.add_view(ReferralAdmin)
-admin.add_view(SeasonAdmin)
-admin.add_view(SeasonTaskAdmin)
+if ADMIN_ENABLED:
+    authentication_backend = AdminAuth(secret_key=ADMIN_SECRET)
+    admin = Admin(
+        app,
+        engine,
+        authentication_backend=authentication_backend,
+        templates_dir=TEMPLATES_DIR,
+        title="UAIFU Admin"
+    )
+
+    admin.add_view(UserAdmin)
+    admin.add_view(CardAdmin)
+    admin.add_view(UserCardAdmin)
+    admin.add_view(SpinLogAdmin)
+    admin.add_view(PurchaseLogAdmin)
+    admin.add_view(ReferralAdmin)
+    admin.add_view(SeasonAdmin)
+    admin.add_view(SeasonTaskAdmin)
+else:
+    print("[config] Admin UI disabled because ADMIN_SECRET is not configured or admin was disabled explicitly.")
 
 @app.post("/games/drone/start", response_model=DroneSessionResponse)
 async def start_drone_game(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
