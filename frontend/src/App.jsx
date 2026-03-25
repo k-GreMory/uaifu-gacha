@@ -788,16 +788,17 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
   const frameCountRef = useRef(0)
 
   useEffect(() => {
-    // Load Drone
-    const img = new Image(); img.src = '/drone.png'; img.onload = () => { droneImgRef.current = img }
-    
-    // Load Day Theme (With Cache Busting)
-    const V = '1.2'
-    const bg = new Image(); bg.src = `/day_theme/day_bg.png?v=${V}`; bg.onload = () => { dayBgRef.current = bg }
-    const cl = new Image(); cl.src = `/day_theme/clouds.png?v=${V}`; cl.onload = () => { cloudsRef.current = cl }
-    const lt = new Image(); lt.src = `/day_theme/traffic_lights.png?v=${V}`; lt.onload = () => { lightsRef.current = lt }
-    const cn = new Image(); cn.src = `/day_theme/traffic_cones.png?v=${V}`; cn.onload = () => { conesRef.current = cn }
-    const dr = new Image(); dr.src = `/drone.png?v=${V}`; dr.onload = () => { droneImgRef.current = dr }
+    // Load All Game Assets (Single Source of Truth)
+    const V = '1.3'
+    const loadImg = (src, ref) => {
+        const img = new Image(); img.src = `${src}?v=${V}`; 
+        img.onload = () => { ref.current = img }
+    }
+    loadImg('/drone.png', droneImgRef)
+    loadImg('/day_theme/day_bg.png', dayBgRef)
+    loadImg('/day_theme/clouds.png', cloudsRef)
+    loadImg('/day_theme/traffic_lights.png', lightsRef)
+    loadImg('/day_theme/traffic_cones.png', conesRef)
   }, [])
 
   const startGame = () => {
@@ -884,40 +885,32 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     ctx.fillStyle = '#38bdf8' // Brighter Blue
     ctx.fillRect(0, 0, 400, 600)
 
-    // Sun (Pixel-Art Style)
+    // Sun (Solid Pixel-Art Diamond - NO ALPHA SHADES)
     ctx.fillStyle = '#fef08a'
-    const sunSize = 40
     const sunX = 330, sunY = 70
-    // Draw a "pixelated" circle with rects
     for(let r=-2; r<=2; r++) {
         for(let c=-2; c<=2; c++) {
-            if(Math.abs(r) + Math.abs(c) <= 3) {
-                ctx.fillRect(sunX + c*15 - 7, sunY + r*15 - 7, 16, 16)
+            if(Math.abs(r) + Math.abs(c) <= 2) {
+                ctx.fillRect(sunX + c*12 - 6, sunY + r*12 - 6, 12, 12)
             }
         }
     }
-    // Subtle glow without blur-circles
-    ctx.fillStyle = 'rgba(254, 240, 138, 0.3)'
-    ctx.fillRect(sunX-40, sunY-40, 80, 80)
 
-    // Unified Pixel-Art Clouds (Procedural for perfect transparency)
+    // Unified Pixel-Art Clouds (Solid White - NO ALPHA SHADES)
     const drawPixelCloud = (x, y) => {
         ctx.fillStyle = '#ffffff'
-        const unit = 8
-        // Simple pixel-art cloud shape
-        ctx.fillRect(x, y, unit * 4, unit * 2)
-        ctx.fillRect(x - unit, y + unit, unit * 6, unit * 2)
-        ctx.fillRect(x + unit, y - unit, unit * 2, unit)
+        const unit = 6
+        ctx.fillRect(x, y, unit * 6, unit * 3)
+        ctx.fillRect(x - unit, y + unit, unit * 8, unit * 2)
+        ctx.fillRect(x + unit, y - unit, unit * 4, unit)
     }
 
-    ctx.globalAlpha = 0.6
     for(let i=0; i<3; i++) {
-        const x = (i * 300 - (frameCountRef.current * 0.5) % 900)
-        const y = 80 + (i % 2) * 50
+        const x = (i * 350 - (frameCountRef.current * 0.4) % 1050)
+        const y = 80 + (i % 2) * 60
         drawPixelCloud(x, y)
-        drawPixelCloud(x + 150, y - 30)
+        drawPixelCloud(x + 180, y - 40)
     }
-    ctx.globalAlpha = 1.0
 
     // Daytime City (Parallax)
     if (dayBgRef.current) {
