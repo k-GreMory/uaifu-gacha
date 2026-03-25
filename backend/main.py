@@ -745,14 +745,7 @@ class AdminAuth(AuthenticationBackend):
 authentication_backend = AdminAuth(secret_key=os.getenv("ADMIN_SECRET", "fallback-secret-key-123"))
 from sqladmin.authentication import login_required
 
-class CustomAdmin(Admin):
-    @login_required
-    async def index(self, request: Request):
-        return await self.templates.TemplateResponse(
-            request, "admin_dashboard.html", {"stats": {"total_users": 0, "total_cards": 0, "total_spins": 0}, "chart_data": {}}
-        )
-
-admin = CustomAdmin(
+admin = Admin(
     app, 
     engine, 
     authentication_backend=authentication_backend,
