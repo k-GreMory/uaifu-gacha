@@ -969,35 +969,35 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
         <canvas ref={canvasRef} width="400" height="600" className="w-full h-full" />
         <div className="absolute top-8 left-8 right-8 flex justify-between pointer-events-none">
           <div className="flex flex-col">
-            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Score</span>
-            <span className="text-3xl font-black text-white">{score}</span>
+            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest drop-shadow-sm">Score</span>
+            <span className="text-3xl font-black text-slate-950 drop-shadow-[0_2px_2px_rgba(255,255,255,0.8)]">{score}</span>
           </div>
           <div className="text-right">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">High</span>
-            <span className="text-sm font-black text-slate-300 block">{highScore}</span>
-            {rewardClaimed && <span className="text-[9px] font-black text-emerald-400 uppercase">Coin+ 🪙</span>}
+            <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">High</span>
+            <span className="text-sm font-black text-slate-800 block">{highScore}</span>
+            {rewardClaimed && <span className="text-[9px] font-black text-emerald-600 uppercase">Coin+ 🪙</span>}
           </div>
         </div>
 
         {gameState === 'START' && (
-          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center p-8 text-center backdrop-blur-sm">
-            <div className="text-5xl mb-6 animate-bounce">🛸</div>
-            <h1 className="text-3xl font-black text-white italic tracking-tighter mb-2">DRONE DASH</h1>
-            <p className="text-xs text-slate-400 mb-8 font-medium">Клікай, щоб летіти.<br/>Заробляй 1 монету за 5 очок.</p>
-            <div className="px-8 py-3 bg-cyan-500 rounded-2xl text-black font-black text-xs uppercase animate-pulse">Клікніть для старту</div>
+          <div className="absolute inset-0 bg-sky-100/40 flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
+            <div className="text-5xl mb-6 animate-bounce">🐶</div>
+            <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter mb-2">DRONE DASH</h1>
+            <p className="text-xs text-slate-700 mb-8 font-bold">Клікай, щоб летіти.<br/>Заробляй 1 монету за 5 очок.</p>
+            <div className="px-8 py-3 bg-slate-900 rounded-2xl text-white font-black text-xs uppercase animate-pulse shadow-xl">Клікніть для старту</div>
           </div>
         )}
 
         {gameState === 'GAMEOVER' && (
-          <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-8 text-center animate-fade-in">
-            <h2 className="text-4xl font-black text-white italic tracking-tighter mb-2">GAME OVER</h2>
-            <div className="text-2xl font-black text-cyan-400 mb-3">{score} <span className="text-[10px] text-slate-500 uppercase">очок</span></div>
-            <div className="mb-8 text-[11px] font-bold text-slate-400">
+          <div className="absolute inset-0 bg-white/60 flex flex-col items-center justify-center p-8 text-center animate-fade-in backdrop-blur-lg">
+            <h2 className="text-4xl font-black text-slate-950 italic tracking-tighter mb-2">GAME OVER</h2>
+            <div className="text-2xl font-black text-blue-900 mb-3 drop-shadow-sm">{score} <span className="text-[10px] text-slate-500 uppercase">очок</span></div>
+            <div className="mb-8 text-[11px] font-bold text-slate-700">
                {score >= 5 ? `Зароблено монет: ${Math.floor(score/5)} 🪙` : 'Наберіть 5 очок для нагороди!'}
             </div>
             <div className="flex flex-col gap-3 w-full">
-              <button onClick={(e) => { e.stopPropagation(); startGame(); }} className="w-full py-4 bg-white text-black font-black rounded-2xl text-xs uppercase transition-all active:scale-95">Ще раз</button>
-              <button onClick={(e) => { e.stopPropagation(); onClose(score); }} className="w-full py-4 bg-slate-800 text-slate-300 font-black rounded-2xl text-xs uppercase transition-all active:scale-95">У хаб</button>
+              <button onClick={(e) => { e.stopPropagation(); startGame(); }} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl text-xs uppercase transition-all active:scale-95 shadow-lg">Ще раз</button>
+              <button onClick={(e) => { e.stopPropagation(); onClose(score); }} className="w-full py-4 bg-white text-slate-600 font-bold border-2 border-slate-200 rounded-2xl text-xs uppercase transition-all active:scale-95">У хаб</button>
             </div>
           </div>
         )}
