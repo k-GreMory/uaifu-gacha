@@ -43,6 +43,7 @@ function App() {
   const [lastError, setLastError] = useState(null)
   const [gameActive, setGameActive] = useState(false)
   const toastTimeoutRef = useRef(null)
+  const collectionFetchInFlightRef = useRef(false)
 
   const triggerHaptic = (type = 'light') => {
     const haptic = window.Telegram?.WebApp?.HapticFeedback
@@ -129,8 +130,9 @@ function App() {
   }, [])
 
   const fetchCollection = useCallback(async (userId = user?.id) => {
-    if (!userId || fetchingCollection) return
+    if (!userId || collectionFetchInFlightRef.current) return
 
+    collectionFetchInFlightRef.current = true
     setFetchingCollection(true)
     try {
       setLastError(null)
@@ -141,9 +143,10 @@ function App() {
       setLastError(msg)
       showToast(`Помилка: ${msg}`)
     } finally {
+      collectionFetchInFlightRef.current = false
       setFetchingCollection(false)
     }
-  }, [fetchingCollection, showToast, user])
+  }, [showToast, user])
 
   const fetchLeaderboard = useCallback(async (mode = lbMode) => {
     try {
@@ -215,6 +218,12 @@ function App() {
 
     void syncActiveTab()
   }, [activeTab, fetchCollection, fetchLeaderboard, fetchSeason, lbMode, user])
+
+  useEffect(() => {
+    if (activeTab !== 'events' && eventsView !== 'hub') {
+      setEventsView('hub')
+    }
+  }, [activeTab, eventsView])
 
   useEffect(() => {
     if (!user) return

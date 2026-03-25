@@ -193,8 +193,8 @@ export function CollectionTab({ collection, fetchingCollection, getRarityColor, 
       )}
 
       <div className="grid grid-cols-2 gap-3 pb-20">
-        {sortedCollection.map((card, idx) => (
-          <div key={idx} className="bg-slate-800/60 backdrop-blur-sm p-2 rounded-2xl border border-slate-700/50 overflow-hidden relative group">
+        {sortedCollection.map(card => (
+          <div key={card.card_id} className="bg-slate-800/60 backdrop-blur-sm p-2 rounded-2xl border border-slate-700/50 overflow-hidden relative group">
             <div className="aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-slate-900">
               <img src={card.image} alt={card.name} loading="lazy" className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" />
             </div>
@@ -390,6 +390,16 @@ export function EventsTab({
 }
 
 export function ReferralTab({ referralData, showToast }) {
+  const copyReferralLink = async () => {
+    try {
+      await navigator.clipboard.writeText(referralData?.link || '')
+      showToast('Скопійовано!')
+    } catch (error) {
+      console.error('Copy referral link failed:', error)
+      showToast('Не вдалося скопіювати посилання')
+    }
+  }
+
   return (
     <div className="w-full max-w-md animate-fade-in flex-1">
       <h2 className="text-xl font-black tracking-tight mb-4 uppercase">🔗 Реферали</h2>
@@ -399,11 +409,13 @@ export function ReferralTab({ referralData, showToast }) {
           {referralData ? referralData.link : 'Завантаження...'}
         </div>
         <button
-          onClick={() => {
-            navigator.clipboard.writeText(referralData?.link || '')
-            showToast('Скопійовано!')
-          }}
-          className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-xs uppercase shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+          onClick={() => { void copyReferralLink() }}
+          disabled={!referralData?.link}
+          className={`w-full py-3 rounded-xl font-black text-xs uppercase transition-all ${
+            referralData?.link
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95'
+              : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+          }`}
         >
           Копіювати посилання
         </button>
