@@ -529,38 +529,48 @@ function App() {
         ) : activeTab === 'leaderboard' ? (
           <div className="w-full max-w-md animate-fade-in flex-1">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-black tracking-tight">🏆 ЛІДЕРБОРД</h2>
-              <div className="flex gap-2">
-                {[['spins','Спіни'],['cards','Картки']].map(([m, label]) => (
-                  <button key={m} onClick={() => { setLbMode(m); fetchLeaderboard(m); }}
-                    className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all ${
-                      lbMode === m ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' : 'bg-slate-800/50 border-slate-700 text-slate-400'
-                    }`}>{label}</button>
+              <h2 className="text-xl font-black tracking-tight uppercase">🏆 Лідерборд</h2>
+              <div className="flex bg-slate-800/40 rounded-xl p-0.5 border border-slate-700/50">
+                {[['spins','🎲'],['cards','🎴']].map(([mode, icon]) => (
+                  <button
+                    key={mode}
+                    onClick={() => { setLbMode(mode); fetchLeaderboard(mode); }}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${lbMode === mode ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}
+                  >
+                    {icon}
+                  </button>
                 ))}
               </div>
             </div>
+            
             <div className="flex flex-col gap-2 pb-20">
-              {leaderboard.map((row) => (
-                <div key={row.rank} className={`flex items-center gap-3 p-3 rounded-2xl border ${
-                  row.rank === 1 ? 'bg-yellow-500/10 border-yellow-500/30' :
-                  row.rank === 2 ? 'bg-slate-400/10 border-slate-400/30' :
-                  row.rank === 3 ? 'bg-amber-700/10 border-amber-700/30' :
-                  'bg-slate-800/40 border-slate-700/50'
-                }`}>
-                  <span className={`text-lg font-black w-8 text-center ${
-                    row.rank === 1 ? 'text-yellow-400' : row.rank === 2 ? 'text-slate-300' : row.rank === 3 ? 'text-amber-600' : 'text-slate-500'
-                  }`}>{row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : `#${row.rank}`}</span>
-                  <div className="flex-1">
-                    <div className="font-bold text-sm truncate">{row.name}</div>
-                    <div className="text-[10px] text-slate-400">{row.score} {row.label}</div>
+              {leaderboard.length > 0 ? leaderboard.map((player, idx) => (
+                <div 
+                  key={player.id} 
+                  className={`flex items-center gap-4 p-4 rounded-[1.8rem] border transition-all ${
+                    player.id === user?.id 
+                    ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.1)]' 
+                    : 'bg-slate-900/40 border-slate-800/80'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${
+                    idx === 0 ? 'bg-yellow-500 text-black shadow-[0_0_15px_rgba(234,179,8,0.4)]' :
+                    idx === 1 ? 'bg-slate-300 text-black' :
+                    idx === 2 ? 'bg-orange-400 text-black' :
+                    'bg-slate-800 text-slate-500'
+                  }`}>
+                    {idx + 1}
                   </div>
-                  {row.user_id === user?.id && (
-                    <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30">ТИ</span>
-                  )}
+                  <div className="flex-1">
+                    <div className="font-bold text-sm truncate">{player.id === user?.id ? 'Ти' : (player.first_name || 'Гравець')}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                      {lbMode === 'cards' ? `${player.total_cards} Карт` : `${player.total_spins} Спінів`}
+                    </div>
+                  </div>
+                  <div className="text-xl">{idx === 0 ? '👑' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : ''}</div>
                 </div>
-              ))}
-              {leaderboard.length === 0 && (
-                <div className="text-center opacity-40 py-20">Ще немає даних. Крути карти! 🎲</div>
+              )) : (
+                <div className="text-center py-20 opacity-30 italic">Завантаження...</div>
               )}
             </div>
           </div>
@@ -573,20 +583,33 @@ function App() {
                 <p className="text-[10px] text-slate-500 mb-5 font-bold tracking-wider">Грай, перемагай та забирай нагороди</p>
 
                 <div className="flex flex-col gap-4">
+                  {/* Drone Dash Card */}
+                  <div 
+                    onClick={() => { setGameActive(true); triggerHaptic('impact'); }}
+                    className="group relative bg-gradient-to-br from-cyan-600/30 to-blue-600/10 border border-cyan-500/40 rounded-[2rem] p-5 overflow-hidden active:scale-95 transition-all cursor-pointer shadow-xl"
+                  >
+                    <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-125 transition-transform">🛸</div>
+                    <div className="flex flex-col relative z-10">
+                      <span className="text-[9px] font-black text-cyan-300 uppercase tracking-widest mb-1">Міні-Гра (Активна)</span>
+                      <span className="text-lg font-black text-white uppercase tracking-tighter text-[16px]">Drone Dash</span>
+                      <p className="text-[10px] text-cyan-400/70 mt-1 font-bold">1 монета / 5 очок</p>
+                    </div>
+                  </div>
+
                   {/* Season Card */}
                   <div 
-                    onClick={() => setEventsView('season_tasks')}
+                    onClick={() => { setEventsView('season_tasks'); triggerHaptic('selection'); }}
                     className="group relative bg-gradient-to-br from-blue-600/30 to-purple-600/10 border border-blue-500/40 rounded-[2rem] p-5 overflow-hidden active:scale-95 transition-all cursor-pointer shadow-xl"
                   >
                     <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-125 transition-transform">🎯</div>
                     <div className="flex flex-col relative z-10">
                       <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-1">Активний Сезон</span>
-                      <span className="text-lg font-black text-white">{season?.season_name || "Завантаження..."}</span>
+                      <span className="text-lg font-black text-white text-[16px]">{season?.season_name || "Завантаження..."}</span>
                       <div className="mt-3 flex items-center gap-3">
                         <div className="flex-1 bg-slate-900/60 rounded-full h-1.5 overflow-hidden">
                           <div 
                             className="h-full bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                            style={{ width: season?.active ? `${Math.min(100, (season.tasks.filter(t => t.completed).length / season.tasks.length) * 100)}%` : '0%' }}
+                            style={{ width: season?.active ? `${Math.min(100, (season.tasks.filter(t => t.completed).length / Math.max(1, season.tasks.length)) * 100)}%` : '0%' }}
                           />
                         </div>
                         <span className="text-[10px] font-black text-blue-400">{season?.active ? `${season.tasks.filter(t => t.completed).length}/${season.tasks.length}` : '0/0'}</span>
@@ -594,18 +617,8 @@ function App() {
                     </div>
                   </div>
 
-                  {/* Dice Mini-Game Placeholder */}
-                  <div className="group bg-slate-800/40 border border-slate-700/50 rounded-[2rem] p-5 flex items-center justify-between relative overflow-hidden opacity-80 grayscale-[0.5] hover:grayscale-0 transition-all cursor-not-allowed">
-                     <div className="flex flex-col">
-                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Міні-Гра (Скоро)</span>
-                       <span className="text-lg font-black text-slate-300">DICE DUEL 🎲</span>
-                       <span className="text-[9px] text-slate-500 mt-1">Змагайся з іншими гравцями на монети</span>
-                     </div>
-                     <div className="w-10 h-10 bg-slate-900/60 rounded-xl flex items-center justify-center text-xl opacity-30">🔌</div>
-                  </div>
-
                   {/* Future Events Placeholder */}
-                  <div className="bg-slate-800/20 border border-dashed border-slate-700/50 rounded-[2rem] p-6 flex items-center justify-center">
+                  <div className="bg-slate-800/20 border border-dashed border-slate-700/50 rounded-[2rem] p-6 flex items-center justify-center opacity-40">
                     <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Більше івентів у розробці...</span>
                   </div>
                 </div>
@@ -619,46 +632,29 @@ function App() {
                   >←</button>
                   <h2 className="text-lg font-black tracking-tight uppercase">{season?.season_name}</h2>
                 </div>
-
-                <div className="text-[10px] text-slate-400 mb-4 px-1">До кінця сезону: <span className="text-cyan-400 font-bold">{season?.days_left} днів</span></div>
                 
                 <div className="flex flex-col gap-3 pb-20">
                   {season?.tasks.map(task => (
                     <div key={task.id} className={`p-4 rounded-[1.5rem] border transition-all ${
                       task.claimed ? 'bg-emerald-900/10 border-emerald-500/20 opacity-60' :
-                      task.completed ? 'bg-blue-900/20 border-blue-500/30 shadow-[0_5px_15px_rgba(59,130,246,0.1)]' :
+                      task.completed ? 'bg-blue-900/20 border-blue-500/30' :
                       'bg-slate-800/40 border-slate-700/50'
                     }`}>
                       <div className="flex justify-between items-start mb-2">
-                        <div className="font-bold text-sm leading-tight pr-4">{task.title}</div>
-                        <div className="flex flex-col items-end shrink-0">
-                          {task.reward_coins > 0 && <span className="text-[10px] font-black text-yellow-500">+{task.reward_coins}🪙</span>}
-                          {task.reward_energy > 0 && <span className="text-[10px] font-black text-cyan-400">+{task.reward_energy}⚡</span>}
-                        </div>
+                        <div className="font-bold text-sm truncate pr-2">{task.title}</div>
+                        <div className="text-[10px] font-black text-yellow-500 whitespace-nowrap">+{task.reward_coins}🪙</div>
                       </div>
                       <div className="flex items-center gap-3 mt-3">
-                        <div className="flex-1 bg-slate-900/60 rounded-full h-2 overflow-hidden border border-slate-800/50">
-                          <div className={`h-full rounded-full transition-all duration-500 ${task.completed ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-slate-700'}`} style={{ width: `${Math.min(100, (task.progress / task.target) * 100)}%` }} />
+                        <div className="flex-1 bg-slate-900/60 rounded-full h-1.5 overflow-hidden">
+                          <div className={`h-full transition-all duration-500 ${task.completed ? 'bg-blue-500' : 'bg-slate-700'}`} style={{ width: `${Math.min(100, (task.progress / task.target) * 100)}%` }} />
                         </div>
-                        <span className="text-[10px] font-black text-slate-500 tabular-nums">{task.progress}/{task.target}</span>
-                        {task.claimed ? (
-                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs shadow-inner">✓</div>
-                        ) : task.completed ? (
-                          <button
-                            onClick={() => claimSeasonTask(task.id)}
-                            disabled={claimingTask === task.id}
-                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-black text-[10px] font-black active:scale-95 transition-all shadow-lg hover:shadow-emerald-500/20 animate-pulse"
-                          >Забрати</button>
-                        ) : null}
+                        <span className="text-[10px] font-black text-slate-500 shrink-0">{task.progress}/{task.target}</span>
+                        {task.completed && !task.claimed && (
+                          <button onClick={() => claimSeasonTask(task.id)} className="px-3 py-1 bg-emerald-500 text-black text-[9px] font-black rounded-lg active:scale-90 transition-all">OK</button>
+                        )}
                       </div>
                     </div>
                   ))}
-                  {!season?.active && (
-                    <div className="text-center opacity-40 py-20">
-                      <div className="text-4xl mb-4">⏳</div>
-                      <div>Зараз немає активного сезону</div>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -666,35 +662,22 @@ function App() {
 
         ) : activeTab === 'referral' ? (
           <div className="w-full max-w-md animate-fade-in flex-1">
-            <h2 className="text-xl font-black tracking-tight mb-4">🔗 РЕФЕРАЛЬНА ПРОГРАМА</h2>
-            <div className="bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl mb-4">
-              <div className="text-sm text-slate-300 mb-2">Запроси друга → обидва отримаєте бонуси!</div>
-              <div className="flex flex-col gap-1 text-xs text-slate-400">
-                <div>👤 Ти: <span className="text-emerald-400 font-bold">+5⚡ +500🪙</span></div>
-                <div>🆕 Друг: <span className="text-cyan-400 font-bold">+3⚡ +200🪙</span></div>
-              </div>
+            <h2 className="text-xl font-black tracking-tight mb-4 uppercase">🔗 Реферали</h2>
+            <div className="bg-slate-800/40 border border-slate-700 p-6 rounded-[2rem] mb-6 text-center">
+               <div className="text-xs text-slate-400 mb-4">Твоє унікальне посилання:</div>
+               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-700 font-mono text-[10px] text-cyan-400 break-all mb-4">
+                  {referralData ? referralData.link : 'Завантаження...'}
+               </div>
+               <button 
+                  onClick={() => { navigator.clipboard.writeText(referralData?.link || ''); showToast('Скопійовано!'); }}
+                  className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-xs uppercase shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+               >Копіювати посилання</button>
             </div>
-            {referralData && (
-              <>
-                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-3 mb-3 font-mono text-[11px] text-cyan-300 break-all">
-                  {referralData.link}
-                </div>
-                <div className="flex gap-2 mb-6">
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(referralData.link); showToast('Посилання скопійовано!'); }}
-                    className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-black text-xs active:scale-95 transition-all"
-                  >📋 Копіювати</button>
-                  <button
-                    onClick={() => { const tg = window.Telegram?.WebApp; if (tg) tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralData.link)}&text=${encodeURIComponent('Грай зі мною в UAIFU Gacha! 🎲')}`); }}
-                    className="flex-1 py-2.5 rounded-xl bg-purple-600 text-white font-black text-xs active:scale-95 transition-all"
-                  >📤 Поділитись</button>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-black text-yellow-400">{referralData.ref_count}</div>
-                  <div className="text-[10px] text-slate-400">запрошених друзів</div>
-                </div>
-              </>
-            )}
+            
+            <div className="text-center py-4">
+               <div className="text-4xl font-black text-white">{referralData?.ref_count || 0}</div>
+               <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Запрошених друзів</div>
+            </div>
           </div>
 
         ) : (
@@ -706,7 +689,7 @@ function App() {
                 style={{ willChange: 'transform' }}
               >
 
-                {/* DEFAULT STATE (Card Back with Dice) - Faces Front initially */}
+                {/* DEFAULT STATE (Card Back with Dice) */}
                 <div 
                   className="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-6 rounded-[2.5rem] bg-slate-800 border-2 border-slate-700/50 border-dashed"
                   style={{ transform: 'translateZ(1px)' }}
@@ -726,99 +709,240 @@ function App() {
                   </div>
                 </div>
 
-                {/* REVEALED STATE (The Result) - Faces Back initially, rotates to Front */}
-                  <div 
-                    className={`absolute inset-0 backface-hidden flex flex-col p-3 rounded-[2.5rem] bg-slate-900 border-2 ${result ? getRarityColor(result.rarity) : ''}`}
-                    style={{ transform: 'rotateY(180deg) translateZ(1px)' }}
-                  >
-                    {/* Visual Polish Elements */}
-                    {result && (
-                      <>
-                        <div className={`rarity-glow ${getRarityColor(result.rarity).split(' ')[0].replace('text-', 'bg-')}`}></div>
-                        {['Legendary', 'Mythic'].includes(result.rarity) && (
-                          <>
-                            <div className="legendary-aura"></div>
-                            <div className="shine-effect animate-shine"></div>
-                          </>
-                        )}
-                      </>
-                    )}
-
-                    <div className="flex-1 rounded-[1.8rem] bg-[#0b1120] flex items-center justify-center overflow-hidden relative shadow-inner">
-                    {result && (
-                      <>
-                        <img src={result.image} alt={result.name} className="w-full h-full object-cover animate-pop-in" style={{ WebkitTransform: 'translateZ(0)' }} />
-                        {result.is_gold && (
-                          <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/40 via-transparent to-yellow-500/10 animate-pulse"></div>
-                        )}
-                        
-                        {/* Overlay for duplicate level up */}
-                        {result.new_level > 0 && (
-                          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 animate-bounce">
-                            <span className="bg-blue-600/90 text-white text-[12px] font-black px-3 py-1 rounded-xl shadow-lg border-2 border-blue-400 whitespace-nowrap hidden sm:inline-block">
-                              Lvl.{result.new_level} 🆙
-                            </span>
-                            <span className="bg-blue-600/90 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-lg border-2 border-blue-400 whitespace-nowrap sm:hidden">
-                              Lvl.{result.new_level} 🆙
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Overlay for name */}
-                        <div className="absolute bottom-4 left-4 right-4 py-2 rounded-xl bg-black/60 border border-white/10 text-center animate-fade-up">
+                {/* REVEALED STATE (The Result) */}
+                <div 
+                  className={`absolute inset-0 backface-hidden flex flex-col p-3 rounded-[2.5rem] bg-slate-900 border-2 ${result ? getRarityColor(result.rarity) : ''}`}
+                  style={{ transform: 'rotateY(180deg) translateZ(1px)' }}
+                >
+                  {result && (
+                    <>
+                      <div className={`rarity-glow ${getRarityColor(result.rarity).split(' ')[0].replace('text-', 'bg-')}`}></div>
+                      <div className="flex-1 rounded-[1.8rem] bg-[#0b1120] flex items-center justify-center overflow-hidden relative shadow-inner">
+                        <img src={result.image} alt={result.name} className="w-full h-full object-cover animate-pop-in" />
+                        <div className="absolute bottom-4 left-4 right-4 py-2 rounded-xl bg-black/60 border border-white/10 text-center">
                           <div className="text-xs font-black uppercase tracking-widest">{result.name}</div>
                         </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Rare Badge */}
-                  {result && (
-                    <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border-2 bg-slate-900 ${getRarityColor(result.rarity).split(' ')[0]} ${getRarityColor(result.rarity).split(' ')[1]}`}>
-                      {result.rarity}
-                    </div>
-                  )}
-
-                  {/* NEW! Badge */}
-                  {result?.is_new && (
-                    <div className="absolute -top-4 -right-4 bg-gradient-to-r from-red-500 to-rose-600 text-white text-[12px] font-black px-4 py-1 rounded-full shadow-[0_0_20px_rgba(225,29,72,0.8)] border-2 border-red-400/50 rotate-12 z-50 animate-bounce">
-                      NEW!
-                    </div>
+                      </div>
+                      <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border-2 bg-slate-900 ${getRarityColor(result.rarity).split(' ')[0]} ${getRarityColor(result.rarity).split(' ')[1]}`}>
+                        {result.rarity}
+                      </div>
+                    </>
                   )}
                 </div>
-
               </div>
             </div>
 
             {/* Action Area */}
-            <div className="mt-4 w-full px-2 flex-1 flex flex-col justify-end pb-2">
+            <div className="mt-4 w-full px-2 flex flex-col items-center">
               <button
                 onClick={spin}
                 disabled={loading || userStats.energy < 1}
-                className={`w-full py-3.5 rounded-2xl font-black text-base tracking-widest uppercase transition-all duration-300 transform active:scale-95 shadow-xl relative overflow-hidden group ${(loading || userStats.energy < 1)
+                className={`w-full py-4 rounded-2xl font-black text-xs tracking-widest uppercase transition-all duration-300 active:scale-95 shadow-xl ${(loading || userStats.energy < 1)
                     ? 'bg-slate-800 text-slate-600 grayscale'
-                    : 'bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-500 hover:to-purple-600 text-white shadow-blue-500/40'
+                    : 'bg-gradient-to-r from-blue-600 to-purple-700 text-white shadow-blue-500/30'
                   }`}
               >
-                <span className="relative z-10 font-mono tracking-[0.2em]">
-                  {loading ? 'ПРОЦЕС...' : (userStats.energy < 1 ? `⏳ ${formatTime(userStats.next_energy_in_seconds)}` : 'КРУТИТИ')}
-                </span>
-                {!loading && userStats.energy >= 1 && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                )}
+                {loading ? 'ПРОЦЕС...' : (userStats.energy < 1 ? `⏳ ${formatTime(userStats.next_energy_in_seconds)}` : 'КРУТИТИ')}
               </button>
-
-              {result && (
-                <div className="mt-3 text-center animate-bounce-slow">
-                  <span className="bg-slate-800/80 px-4 py-1.5 rounded-full text-[10px] font-bold text-slate-300 border border-slate-700/50">
-                    ✨ {result.message}
-                  </span>
-                </div>
-              )}
+              {result && <p className="mt-3 text-[10px] font-bold text-slate-400 animate-fade-in italic">✨ {result.message}</p>}
             </div>
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// --- MINIGAME: DRONE DASH ---
+const DroneGame = ({ user, onClose, triggerHaptic }) => {
+  const canvasRef = useRef(null)
+  const [gameState, setGameState] = useState('START') // START, PLAYING, GAMEOVER
+  const [score, setScore] = useState(0)
+  const [highScore, setHighScore] = useState(parseInt(localStorage.getItem('drone_highscore') || '0'))
+  const [rewardClaimed, setRewardClaimed] = useState(false)
+
+  // Game Constants
+  const GRAVITY = 0.2
+  const JUMP = -4.5
+  const PIPE_SPEED = 3.0
+  const PIPE_SPAWN_RATE = 110 // frames
+  const PIPE_WIDTH = 50
+  const GAP_SIZE = 170
+
+  const requestRef = useRef()
+  const birdRef = useRef({ x: 50, y: 250, velocity: 0, width: 34, height: 24 })
+  const pipesRef = useRef([])
+  const frameCountRef = useRef(0)
+
+  const startGame = () => {
+    birdRef.current = { x: 50, y: 250, velocity: 0, width: 34, height: 24 }
+    pipesRef.current = []
+    frameCountRef.current = 0
+    setScore(0)
+    setRewardClaimed(false)
+    setGameState('PLAYING')
+  }
+
+  const jump = () => {
+    if (gameState === 'PLAYING') {
+      birdRef.current.velocity = JUMP
+      triggerHaptic('selection')
+    } else if (gameState === 'START' || gameState === 'GAMEOVER') {
+      startGame()
+    }
+  }
+
+  const update = () => {
+    if (gameState !== 'PLAYING') return
+
+    birdRef.current.velocity += GRAVITY
+    birdRef.current.y += birdRef.current.velocity
+
+    if (birdRef.current.y < 0 || birdRef.current.y > 600) {
+      endGame()
+    }
+
+    frameCountRef.current++
+    if (frameCountRef.current % PIPE_SPAWN_RATE === 0) {
+      const minPipeHeight = 50
+      const maxPipeHeight = 300
+      const height = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1)) + minPipeHeight
+      pipesRef.current.push({ x: 400, top: height, bottom: height + GAP_SIZE, passed: false })
+    }
+
+    pipesRef.current.forEach(pipe => {
+      pipe.x -= PIPE_SPEED
+      if (
+        birdRef.current.x + birdRef.current.width > pipe.x &&
+        birdRef.current.x < pipe.x + PIPE_WIDTH &&
+        (birdRef.current.y < pipe.top || birdRef.current.y + birdRef.current.height > pipe.bottom)
+      ) {
+        endGame()
+      }
+      if (!pipe.passed && birdRef.current.x > pipe.x + PIPE_WIDTH) {
+        pipe.passed = true
+        setScore(s => s + 1)
+      }
+    })
+    pipesRef.current = pipesRef.current.filter(p => p.x > -PIPE_WIDTH)
+  }
+
+  const endGame = () => {
+    setGameState('GAMEOVER')
+    triggerHaptic('error')
+    if (score > highScore) {
+      setHighScore(score)
+      localStorage.setItem('drone_highscore', score.toString())
+    }
+    if (score >= 5) claimReward(score)
+  }
+
+  const claimReward = async (finalScore) => {
+    if (!user || rewardClaimed) return
+    const coins = Math.floor(finalScore / 5)
+    if (coins <= 0) return
+    try {
+      await axios.post(`${BACKEND_URL}/games/drone/reward`, { user_id: user.id, score: finalScore, coins })
+      setRewardClaimed(true)
+    } catch (e) {
+      console.error("Reward error", e)
+    }
+  }
+
+  const draw = (ctx) => {
+    ctx.clearRect(0, 0, 400, 600)
+    ctx.fillStyle = '#020617'
+    ctx.fillRect(0, 0, 400, 600)
+    
+    // Parallax BG (Buildings)
+    ctx.fillStyle = '#0f172a'
+    for(let i=0; i<6; i++) {
+        const x = (i * 120 - (frameCountRef.current * 0.5) % 120)
+        ctx.fillRect(x, 450, 80, 150)
+    }
+
+    // Energy Gates (Pipes)
+    pipesRef.current.forEach(pipe => {
+      ctx.fillStyle = '#38bdf8'
+      ctx.shadowBlur = 10
+      ctx.shadowColor = '#38bdf8'
+      ctx.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.top)
+      ctx.fillRect(pipe.x, pipe.bottom, PIPE_WIDTH, 600 - pipe.bottom)
+      ctx.shadowBlur = 0
+    })
+
+    // Bird (Drone)
+    ctx.save()
+    ctx.translate(birdRef.current.x + 17, birdRef.current.y + 12)
+    ctx.rotate(Math.min(0.5, Math.max(-0.5, birdRef.current.velocity * 0.1)))
+    
+    ctx.fillStyle = '#f8fafc'
+    ctx.beginPath()
+    ctx.roundRect(-17, -8, 34, 16, 8)
+    ctx.fill()
+    ctx.fillStyle = '#0ea5e9'
+    ctx.fillRect(-12, -4, 24, 2)
+    // Propellers (Simulated)
+    ctx.strokeStyle = '#64748b'
+    ctx.lineWidth = 2
+    const propAnim = Math.sin(frameCountRef.current * 0.5) * 4
+    ctx.beginPath(); ctx.moveTo(-15, -8); ctx.lineTo(-15, -12 + propAnim); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(15, -8); ctx.lineTo(15, -12 + propAnim); ctx.stroke();
+    ctx.restore()
+  }
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    const loop = () => {
+      update()
+      draw(ctx)
+      requestRef.current = requestAnimationFrame(loop)
+    }
+    requestRef.current = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(requestRef.current)
+  }, [gameState])
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center touch-none select-none" onClick={jump}>
+      <div className="relative w-full max-w-[400px] aspect-[2/3] overflow-hidden rounded-[2.5rem] border-4 border-slate-900 bg-black">
+        <canvas ref={canvasRef} width="400" height="600" className="w-full h-full" />
+        <div className="absolute top-8 left-8 right-8 flex justify-between pointer-events-none">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Score</span>
+            <span className="text-3xl font-black text-white">{score}</span>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">High</span>
+            <span className="text-sm font-black text-slate-300 block">{highScore}</span>
+            {rewardClaimed && <span className="text-[9px] font-black text-emerald-400 uppercase">Coin+ 🪙</span>}
+          </div>
+        </div>
+
+        {gameState === 'START' && (
+          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center p-8 text-center backdrop-blur-sm">
+            <div className="text-5xl mb-6 animate-bounce">🛸</div>
+            <h1 className="text-3xl font-black text-white italic tracking-tighter mb-2">DRONE DASH</h1>
+            <p className="text-xs text-slate-400 mb-8 font-medium">Клікай, щоб летіти.<br/>Заробляй 1 монету за 5 очок.</p>
+            <div className="px-8 py-3 bg-cyan-500 rounded-2xl text-black font-black text-xs uppercase animate-pulse">Клікніть для старту</div>
+          </div>
+        )}
+
+        {gameState === 'GAMEOVER' && (
+          <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+            <h2 className="text-4xl font-black text-white italic tracking-tighter mb-2">GAME OVER</h2>
+            <div className="text-2xl font-black text-cyan-400 mb-3">{score} <span className="text-[10px] text-slate-500 uppercase">очок</span></div>
+            <div className="mb-8 text-[11px] font-bold text-slate-400">
+               {score >= 5 ? `Зароблено монет: ${Math.floor(score/5)} 🪙` : 'Наберіть 5 очок для нагороди!'}
+            </div>
+            <div className="flex flex-col gap-3 w-full">
+              <button onClick={(e) => { e.stopPropagation(); startGame(); }} className="w-full py-4 bg-white text-black font-black rounded-2xl text-xs uppercase transition-all active:scale-95">Ще раз</button>
+              <button onClick={(e) => { e.stopPropagation(); onClose(score); }} className="w-full py-4 bg-slate-800 text-slate-300 font-black rounded-2xl text-xs uppercase transition-all active:scale-95">У хаб</button>
+            </div>
+          </div>
+        )}
+      </div>
+      <p className="mt-8 text-[10px] text-slate-500 font-black uppercase tracking-widest opacity-50">Натисніть будь-де, щоб летіти</p>
     </div>
   )
 }

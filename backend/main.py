@@ -816,6 +816,38 @@ admin.add_view(ReferralAdmin)
 admin.add_view(SeasonAdmin)
 admin.add_view(SeasonTaskAdmin)
 
+@app.post("/games/drone/reward")
+async def drone_reward(data: dict, db: Session = Depends(get_db)):
+    user_id = data.get("user_id")
+    score = data.get("score", 0)
+    coins_to_add = data.get("coins", 0)
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing user_id")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Basic server-side validation
+    # Max coins is capped at 50 per game to prevent abuse
+    expected_coins = min(score // 5, 50)
+    if coins_to_add > expected_coins:
+        coins_to_add = expected_coins
+
+    if coins_to_add > 0:
+        user.coins += coins_to_add
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    return {
+        "status": "success",
+        "coins_added": coins_to_add,
+        "new_balance": user.coins,
+        "user_stats": await get_user_stats(user, db)
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
