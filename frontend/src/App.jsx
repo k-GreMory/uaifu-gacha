@@ -27,6 +27,7 @@ function App() {
   const [lastError, setLastError] = useState(null)
   const [debugMode, setDebugMode] = useState(false)
   const [debugClickCount, setDebugClickCount] = useState(0)
+  const [gameActive, setGameActive] = useState(false)
 
   const triggerHaptic = (type = 'light') => {
     const haptic = window.Telegram?.WebApp?.HapticFeedback;
@@ -326,6 +327,10 @@ function App() {
       return a.name.localeCompare(b.name);
     });
   }, [collection]);
+
+  if (gameActive) {
+    return <DroneGame user={user} triggerHaptic={triggerHaptic} onClose={(score) => { setGameActive(false); fetchUserStats(); }} />
+  }
 
   return (
     <div className="flex flex-col items-center min-h-screen w-full bg-[#0f172a] text-white p-3 sm:p-5 font-sans select-none overflow-x-hidden relative">
