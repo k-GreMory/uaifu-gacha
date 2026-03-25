@@ -24,10 +24,36 @@ import {
   spinRequest
 } from './lib/api'
 
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1'])
+
+const parseTelegramInitData = (initData = '') => {
+  if (!initData) {
+    return { user: null, startParam: '' }
+  }
+
+  const params = new URLSearchParams(initData)
+  let user = null
+
+  const userParam = params.get('user')
+  if (userParam) {
+    try {
+      user = JSON.parse(userParam)
+    } catch (error) {
+      console.error('Failed to parse Telegram initData user:', error)
+    }
+  }
+
+  return {
+    user,
+    startParam: params.get('start_param') || ''
+  }
+}
+
 function App() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState(null)
+  const [telegramStartParam, setTelegramStartParam] = useState('')
   const [userStats, setUserStats] = useState({ energy: 0, max_energy: 20, coins: 0, next_energy_in_seconds: 0, total_cards: 200 })
   const [collection, setCollection] = useState([])
   const [activeTab, setActiveTab] = useState('home')
@@ -124,14 +150,28 @@ function App() {
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp
-    if (tg && tg.initDataUnsafe?.user) {
+    const parsed = parseTelegramInitData(tg?.initData || '')
+
+    if (tg) {
       tg.ready()
       tg.expand()
-      setUser(tg.initDataUnsafe.user)
-    } else {
-      setUser({ first_name: 'Гість (Dev Mode)', id: 12345678 })
     }
-  }, [])
+
+    const telegramUser = tg?.initDataUnsafe?.user || parsed.user
+    const startParam = tg?.initDataUnsafe?.start_param || parsed.startParam || ''
+
+    if (telegramUser?.id) {
+      setUser(telegramUser)
+      setTelegramStartParam(startParam)
+    } else if (LOCAL_HOSTS.has(window.location.hostname)) {
+      setUser({ first_name: 'Гість (Dev Mode)', id: 12345678 })
+      setTelegramStartParam('')
+    } else {
+      setUser(null)
+      setTelegramStartParam('')
+      showToast('Не вдалося підтвердити Telegram-сесію. Перевідкрий мініапку.')
+    }
+  }, [showToast])
 
   const fetchCollection = useCallback(async (userId = user?.id) => {
     if (!userId || collectionFetchInFlightRef.current) return
@@ -244,8 +284,7 @@ function App() {
       await fetchUserStats(user)
       await fetchCollection(user.id)
 
-      const tg = window.Telegram?.WebApp
-      const startParam = tg?.initDataUnsafe?.start_param || ''
+      const startParam = telegramStartParam
       if (startParam.startsWith('ref_')) {
         const refId = parseInt(startParam.replace('ref_', ''), 10)
         if (refId && refId !== user.id) {
@@ -257,7 +296,7 @@ function App() {
     }
 
     void initializeUser()
-  }, [fetchCollection, fetchUserStats, showToast, user])
+  }, [fetchCollection, fetchUserStats, showToast, telegramStartParam, user])
 
   useEffect(() => {
     if (!user) return
@@ -399,6 +438,20 @@ function App() {
       case 'UnCommon': return 'text-emerald-400 border-emerald-500 shadow-emerald-500/10'
       default: return 'text-slate-300 border-slate-600 shadow-slate-500/10'
     }
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#0f172a] px-6 text-white">
+        <div className="max-w-sm rounded-[2rem] border border-slate-700/60 bg-slate-900/70 p-6 text-center shadow-2xl">
+          <div className="mb-3 text-4xl">🔒</div>
+          <h1 className="mb-2 text-lg font-black uppercase tracking-tight">Telegram Session Needed</h1>
+          <p className="text-sm text-slate-300">
+            Перевідкрий цю мініапку прямо в Telegram, щоб підтягнути твій профіль і колекцію.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   if (gameActive) {
