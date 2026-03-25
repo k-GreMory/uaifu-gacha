@@ -874,51 +874,56 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
     ctx.clearRect(0, 0, 400, 600)
     
     // Day Sky
-    ctx.fillStyle = '#7dd3fc'
+    ctx.fillStyle = '#38bdf8' // Brighter Blue
     ctx.fillRect(0, 0, 400, 600)
 
-    // Clouds (Slow Parallax)
-    if (cloudsRef.current) {
-        const x = -(frameCountRef.current * 0.2) % 1200
-        ctx.drawImage(cloudsRef.current, x, 50, 1200, 200)
-        ctx.drawImage(cloudsRef.current, x + 1200, 50, 1200, 200)
+    // Sun
+    ctx.shadowBlur = 40; ctx.shadowColor = '#fde047'
+    ctx.fillStyle = '#fff7ed'
+    ctx.beginPath(); ctx.arc(330, 70, 30, 0, Math.PI * 2); ctx.fill()
+    ctx.shadowBlur = 0
+
+    // Clouds (Procedural for perfect transparency)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+    for(let i=0; i<5; i++) {
+        const x = (i * 250 - (frameCountRef.current * 0.3) % 1250)
+        const y = 50 + (i % 3) * 40
+        // Simple 3-circle cloud
+        ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI*2); ctx.fill()
+        ctx.beginPath(); ctx.arc(x+15, y-10, 22, 0, Math.PI*2); ctx.fill()
+        ctx.beginPath(); ctx.arc(x+30, y, 20, 0, Math.PI*2); ctx.fill()
     }
 
     // Daytime City (Parallax)
     if (dayBgRef.current) {
         const bgX = -(frameCountRef.current * 0.8) % 800
-        ctx.drawImage(dayBgRef.current, bgX, 200, 800, 400)
-        ctx.drawImage(dayBgRef.current, bgX + 800, 200, 800, 400)
+        ctx.drawImage(dayBgRef.current, bgX, 220, 800, 380)
+        ctx.drawImage(dayBgRef.current, bgX + 800, 220, 800, 380)
     }
 
     // Street Floor
-    ctx.fillStyle = '#475569'
+    ctx.fillStyle = '#334155'
     ctx.fillRect(0, 550, 400, 50)
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
     for(let i=0; i<10; i++) {
         const x = (i * 80 - (frameCountRef.current * PIPE_SPEED) % 80)
-        ctx.fillRect(x, 573, 30, 4)
+        ctx.fillRect(x, 573, 40, 4)
     }
 
     // Obstacles (Traffic Lights)
     pipesRef.current.forEach(pipe => {
-      ctx.fillStyle = '#1e293b' // Pole color
+      ctx.fillStyle = '#475569' // Pole color
       
       // Top Obstacle
-      ctx.fillRect(pipe.x + 20, 0, 10, pipe.top)
+      ctx.fillRect(pipe.x + 22, 0, 6, pipe.top)
       if (lightsRef.current) {
-          ctx.drawImage(lightsRef.current, 0, 0, 32, 64, pipe.x + 9, pipe.top - 64, 32, 64)
-      } else {
-          ctx.fillStyle = '#0f172a'; ctx.fillRect(pipe.x, pipe.top - 40, PIPE_WIDTH, 40)
+          ctx.drawImage(lightsRef.current, 160, 0, 32, 64, pipe.x + 9, pipe.top - 64, 32, 64)
       }
       
       // Bottom Obstacle
-      ctx.fillStyle = '#1e293b'
-      ctx.fillRect(pipe.x + 20, pipe.bottom, 10, 600 - pipe.bottom)
+      ctx.fillRect(pipe.x + 22, pipe.bottom, 6, 600 - pipe.bottom)
       if (lightsRef.current) {
-          ctx.drawImage(lightsRef.current, 0, 0, 32, 64, pipe.x + 9, pipe.bottom, 32, 64)
-      } else {
-          ctx.fillStyle = '#0f172a'; ctx.fillRect(pipe.x, pipe.bottom, PIPE_WIDTH, 40)
+          ctx.drawImage(lightsRef.current, 160, 0, 32, 64, pipe.x + 9, pipe.bottom, 32, 64)
       }
     })
 
