@@ -1,24 +1,33 @@
 import random
 import os
-import secrets
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import func
 
 import models
-from auth import TelegramAuthUser, get_authenticated_telegram_user
+from admin_panel import setup_admin
+from bootstrap import bootstrap_system
 from config import validate_runtime_configuration
-from database import engine, SessionLocal, get_db
-from cards_data import CARDS, RARITY_CHANCES
-
-from sqladmin import Admin, ModelView
-from sqladmin.authentication import AuthenticationBackend
+from database import engine, get_db
+from cards_data import RARITY_CHANCES
+from drone_service import (
+    create_drone_game_session as create_drone_game_session_impl,
+    get_max_allowed_drone_score as get_max_allowed_drone_score_impl,
+)
+from schemas import (
+    DroneRewardRequest,
+    DroneRewardResponse,
+    DroneSessionResponse,
+    SpinResult,
+    UserCardInfo,
+    UserState,
+)
+from user_service import get_current_user, get_or_create_user, get_user_state
 from starlette.requests import Request
 
 load_dotenv()
@@ -30,139 +39,6 @@ CORS_ALLOW_ORIGIN_REGEX = RUNTIME_CONFIG["cors_origin_regex"]
 if not CORS_ALLOW_ORIGINS and not CORS_ALLOW_ORIGIN_REGEX:
     CORS_ALLOW_ORIGINS = ["*"]
 
-# Create tables (creates new ones, doesn't migrate existing ones)
-models.Base.metadata.create_all(bind=engine)
-
-# Manual migration for SQLite since metadata.create_all doesn't add columns
-def migrate_database():
-    if engine.dialect.name != "sqlite":
-        return
-
-    db = SessionLocal()
-    try:
-        # Check User table columns
-        from sqlalchemy import text
-        result = db.execute(text("PRAGMA table_info(users)")).fetchall()
-        columns = [row[1] for row in result]
-        
-        # New columns for User model in Phase 2
-        new_cols = [
-            ("total_spins", "INTEGER DEFAULT 0"),
-            ("referred_by", "INTEGER")
-        ]
-        
-        for col_name, col_type in new_cols:
-            if col_name not in columns:
-                print(f"Migrating: Adding column '{col_name}' to 'users' table...")
-                db.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
-                db.commit()
-    except Exception as e:
-        print(f"Migration error during column update: {e}")
-    finally:
-        db.close()
-
-# Merging character versions that have multiple IDs
-def reconcile_card_duplicates():
-    MAPPING = {
-        "c184": "c201", "c185": "c202", "c186": "c203", "c187": "c205",
-        "c204": "c188", "c206": "c189", "c190": "c207", "c208": "c191",
-        "c192": "c209", "c193": "c210", "c211": "c194", "c212": "c195",
-        "c213": "c196", "c214": "c197", "c215": "c198", "c199": "c216"
-    }
-    
-    db = SessionLocal()
-    try:
-        for old_id, new_id in MAPPING.items():
-            # 1. Update UserCard entries
-            old_entries = db.query(models.UserCard).filter(models.UserCard.card_id == old_id).all()
-            for old_entry in old_entries:
-                primary_entry = db.query(models.UserCard).filter(
-                    models.UserCard.user_id == old_entry.user_id,
-                    models.UserCard.card_id == new_id
-                ).first()
-                
-                if primary_entry:
-                    # Merge: +1 for the card itself, plus its duplicates
-                    primary_entry.duplicates += (old_entry.duplicates + 1)
-                    db.delete(old_entry)
-                else:
-                    # Move: Change ID
-                    old_entry.card_id = new_id
-            
-            # 2. Update SpinLog entries
-            db.query(models.SpinLog).filter(models.SpinLog.card_id == old_id).update({models.SpinLog.card_id: new_id})
-            
-            # 3. Clean up the cards table if the old ID exists
-            db.query(models.Card).filter(models.Card.id == old_id).delete()
-            
-        db.commit()
-        print("Character card consolidation completed successfully.")
-    except Exception as e:
-        print(f"Error during consolidation: {e}")
-        db.rollback()
-    finally:
-        db.close()
-
-# Auto-sync the database cards table on startup
-def sync_database():
-    db = SessionLocal()
-    try:
-        existing_ids = {c.id for c in db.query(models.Card).all()}
-        new_count = 0
-        updated_count = 0
-        
-        for card_data in CARDS:
-            if card_data["id"] not in existing_ids:
-                card = models.Card(
-                    id=card_data["id"],
-                    name=card_data["name"],
-                    rarity=card_data["rarity"],
-                    image=card_data["image"],
-                    description=card_data.get("description", "")
-                )
-                db.add(card)
-                new_count += 1
-            else:
-                # Update existing card to ensure name/rarity/image stay in sync with CARDS
-                db.query(models.Card).filter(models.Card.id == card_data["id"]).update({
-                    "name": card_data["name"],
-                    "rarity": card_data["rarity"],
-                    "image": card_data["image"],
-                    "description": card_data.get("description", "")
-                })
-                updated_count += 1
-        
-        db.commit()
-        if new_count > 0 or updated_count > 0:
-            print(f"Database Sync: {new_count} new cards added, {updated_count} cards updated.")
-    finally:
-        db.close()
-
-# Initialize database on startup
-def bootstrap_system():
-    # Run only core metadata first
-    models.Base.metadata.create_all(bind=engine)
-    
-    migrate_database()
-    sync_database()
-    reconcile_card_duplicates()
-    
-    # NEW: Cleanup Orphans (UserCard -> Missing Card)
-    db = SessionLocal()
-    try:
-        # Avoid subquery incompatibility in some SQLite versions by fetching manually
-        card_ids = [c.id for c in db.query(models.Card.id).all()]
-        orphans = db.query(models.UserCard).filter(~models.UserCard.card_id.in_(card_ids)).all()
-        if orphans:
-            print(f"Cleaning up {len(orphans)} orphaned cards...")
-            for o in orphans:
-                db.delete(o)
-            db.commit()
-    except Exception as e:
-        print(f"Orphan Cleanup Error: {e}")
-    finally:
-        db.close()
-
 bootstrap_system()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -171,6 +47,18 @@ DRONE_SESSION_TTL_MINUTES = int(os.getenv("DRONE_SESSION_TTL_MINUTES", "15"))
 MAX_DRONE_COINS_PER_RUN = int(os.getenv("MAX_DRONE_COINS_PER_RUN", "50"))
 MAX_DRONE_SCORE_PER_SECOND = float(os.getenv("MAX_DRONE_SCORE_PER_SECOND", "0.75"))
 DRONE_SCORE_GRACE = int(os.getenv("DRONE_SCORE_GRACE", "10"))
+
+
+def create_drone_game_session(db: Session, user_id: int):
+    return create_drone_game_session_impl(db, user_id, DRONE_SESSION_TTL_MINUTES)
+
+
+def get_max_allowed_drone_score(session: models.DroneGameSession):
+    return get_max_allowed_drone_score_impl(
+        session,
+        MAX_DRONE_SCORE_PER_SECOND,
+        DRONE_SCORE_GRACE,
+    )
 
 app = FastAPI(title="UAIFU Admin API", version="1.0.0")
 
@@ -196,142 +84,6 @@ async def https_middleware(request: Request, call_next):
     # Also fix the URL for redirect responses if needed
     response = await call_next(request)
     return response
-
-class UserState(BaseModel):
-    energy: int
-    max_energy: int
-    coins: int
-    next_energy_in_seconds: int
-    total_cards: int = 200
-
-class SpinResult(BaseModel):
-    card_id: str
-    name: str
-    rarity: str
-    image: str
-    message: str
-    is_gold: bool
-    is_new: bool = False
-    new_level: int = 0
-    
-    # Full UI state for perfect sync
-    user_stats: UserState
-
-class UserCardInfo(BaseModel):
-    card_id: str
-    name: str
-    rarity: str
-    image: str
-    duplicates: int
-    acquired_at: Optional[datetime] = None
-
-class DroneSessionResponse(BaseModel):
-    session_token: str
-    expires_in_seconds: int
-
-class DroneRewardRequest(BaseModel):
-    session_token: str
-    score: int
-
-class DroneRewardResponse(BaseModel):
-    status: str
-    coins_added: int
-    new_balance: int
-    user_stats: UserState
-
-def update_energy(db: Session, user: models.User):
-    now = datetime.now(timezone.utc).replace(tzinfo=None) # Keep tz naive for sqlite
-    # Calculate difference
-    if user.energy < user.max_energy:
-        diff_minutes = (now - user.last_energy_update).total_seconds() / 60.0
-        gained = int(diff_minutes // 10)
-        
-        if gained > 0:
-            user.energy = min(user.max_energy, user.energy + gained)
-            # Advance last_update by gained * 10 minutes so partial progress isn't lost
-            user.last_energy_update = user.last_energy_update + timedelta(minutes=gained * 10)
-            db.commit()
-    else:
-        # If at max energy, keep update time at now
-        user.last_energy_update = now
-        db.commit()
-    return user
-
-def get_user_state(db: Session, user: models.User):
-    next_energy = 0
-    if user.energy < user.max_energy:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        elapsed = (now - user.last_energy_update).total_seconds()
-        next_energy = max(0, int((10 * 60) - elapsed))
-        
-    total_cards = db.query(models.Card).count()
-    return {
-        "energy": user.energy,
-        "max_energy": user.max_energy,
-        "coins": user.coins,
-        "next_energy_in_seconds": next_energy,
-        "total_cards": total_cards
-    }
-
-def get_or_create_user(db: Session, user_id: int, username: Optional[str] = None, first_name: Optional[str] = None):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        user = models.User(id=user_id, username=username, first_name=first_name, energy=20, max_energy=20, coins=0)
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    else:
-        # Always update name/username from TG if available (Phase 36: Sync Nicknames)
-        needs_update = False
-        if username and user.username != username:
-            user.username = username
-            needs_update = True
-        if first_name and user.first_name != first_name:
-            user.first_name = first_name
-            needs_update = True
-        
-        user = update_energy(db, user)
-        if needs_update:
-            db.commit()
-            db.refresh(user)
-    return user
-
-def get_current_user(
-    auth_user: TelegramAuthUser = Depends(get_authenticated_telegram_user),
-    db: Session = Depends(get_db),
-):
-    return get_or_create_user(
-        db,
-        auth_user.id,
-        username=auth_user.username,
-        first_name=auth_user.first_name,
-    )
-
-def create_drone_game_session(db: Session, user_id: int):
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    db.query(models.DroneGameSession).filter(
-        models.DroneGameSession.user_id == user_id,
-        models.DroneGameSession.status == "active"
-    ).update({models.DroneGameSession.status: "replaced"})
-
-    session = models.DroneGameSession(
-        user_id=user_id,
-        session_token=secrets.token_urlsafe(24),
-        status="active",
-        created_at=now,
-        expires_at=now + timedelta(minutes=DRONE_SESSION_TTL_MINUTES),
-    )
-    db.add(session)
-    db.commit()
-    db.refresh(session)
-    return session
-
-def get_max_allowed_drone_score(session: models.DroneGameSession):
-    elapsed_seconds = max(
-        1,
-        int((datetime.now(timezone.utc).replace(tzinfo=None) - session.created_at).total_seconds()),
-    )
-    return int(elapsed_seconds * MAX_DRONE_SCORE_PER_SECOND) + DRONE_SCORE_GRACE
 
 @app.get("/user", response_model=UserState)
 async def get_user(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -793,99 +545,13 @@ async def claim_season_reward(task_id: int, current_user: models.User = Depends(
 # --- Admin Section ---
 
 
-class AdminAuth(AuthenticationBackend):
-    async def login(self, request: Request) -> bool:
-        form = await request.form()
-        secret = form.get("username") # Using username field for the secret key
-        if ADMIN_SECRET and secret == ADMIN_SECRET:
-            request.session.update({"token": secret})
-            return True
-        return False
-
-    async def logout(self, request: Request) -> bool:
-        request.session.clear()
-        return True
-
-    async def authenticate(self, request: Request) -> bool:
-        token = request.session.get("token")
-        if not ADMIN_SECRET or not token or token != ADMIN_SECRET:
-            return False
-        return True
-
-class UserAdmin(ModelView, model=models.User):
-    name = "Користувач"
-    name_plural = "Користувачі"
-    icon = "fa-solid fa-user"
-    column_list = [models.User.id, models.User.username, models.User.first_name, models.User.coins, models.User.energy, models.User.total_spins, models.User.referred_by]
-    search_fields = ["username", "first_name", "id"]
-    inline_models = [models.UserCard]
-
-class CardAdmin(ModelView, model=models.Card):
-    name = "Персонаж"
-    name_plural = "Персонажі"
-    icon = "fa-solid fa-image"
-    column_list = [models.Card.id, models.Card.name, models.Card.rarity, models.Card.image]
-    search_fields = ["name", "id"]
-
-class UserCardAdmin(ModelView, model=models.UserCard):
-    name = "Колекція"
-    name_plural = "Колекції"
-    icon = "fa-solid fa-box"
-    column_list = [models.UserCard.id, models.UserCard.user_id, models.UserCard.card_id, models.UserCard.duplicates, models.UserCard.acquired_at]
-    search_fields = ["user_id", "card_id"]
-
-class SpinLogAdmin(ModelView, model=models.SpinLog):
-    name = "Лог Спінів"
-    name_plural = "Логи Спінів"
-    icon = "fa-solid fa-list"
-    column_list = [models.SpinLog.id, models.SpinLog.user_id, models.SpinLog.card_id, models.SpinLog.is_duplicate, models.SpinLog.timestamp]
-    search_fields = ["user_id", "card_id"]
-
-class PurchaseLogAdmin(ModelView, model=models.PurchaseLog):
-    name = "Лог Покупок"
-    name_plural = "Логи Покупок"
-    icon = "fa-solid fa-cart-shopping"
-    column_list = [models.PurchaseLog.id, models.PurchaseLog.user_id, models.PurchaseLog.item, models.PurchaseLog.cost, models.PurchaseLog.timestamp]
-    search_fields = ["user_id", "item"]
-
-class ReferralAdmin(ModelView, model=models.Referral):
-    name = "Реферал"
-    name_plural = "Реферали"
-    icon = "fa-solid fa-link"
-    column_list = ["id", "referrer_id", "invited_id", "rewarded", "created_at"]
-
-class SeasonAdmin(ModelView, model=models.Season):
-    name = "Сезон"
-    name_plural = "Сезони"
-    icon = "fa-solid fa-calendar"
-    column_list = ["id", "name", "start_date", "end_date", "is_active"]
-
-class SeasonTaskAdmin(ModelView, model=models.SeasonTask):
-    name = "Завдання Сезону"
-    name_plural = "Завдання Сезону"
-    icon = "fa-solid fa-check-double"
-    column_list = ["id", "season_id", "title", "reward_coins", "reward_energy"]
-
-if ADMIN_ENABLED:
-    authentication_backend = AdminAuth(secret_key=ADMIN_SECRET)
-    admin = Admin(
-        app,
-        engine,
-        authentication_backend=authentication_backend,
-        templates_dir=TEMPLATES_DIR,
-        title="UAIFU Admin"
-    )
-
-    admin.add_view(UserAdmin)
-    admin.add_view(CardAdmin)
-    admin.add_view(UserCardAdmin)
-    admin.add_view(SpinLogAdmin)
-    admin.add_view(PurchaseLogAdmin)
-    admin.add_view(ReferralAdmin)
-    admin.add_view(SeasonAdmin)
-    admin.add_view(SeasonTaskAdmin)
-else:
-    print("[config] Admin UI disabled because ADMIN_SECRET is not configured or admin was disabled explicitly.")
+admin = setup_admin(
+    app=app,
+    engine=engine,
+    templates_dir=TEMPLATES_DIR,
+    admin_secret=ADMIN_SECRET,
+    admin_enabled=ADMIN_ENABLED,
+)
 
 @app.post("/games/drone/start", response_model=DroneSessionResponse)
 async def start_drone_game(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
