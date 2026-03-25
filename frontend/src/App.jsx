@@ -14,7 +14,8 @@ function App() {
   const [user, setUser] = useState(null)
   const [userStats, setUserStats] = useState({ energy: 0, max_energy: 20, coins: 0, next_energy_in_seconds: 0, total_cards: 200 })
   const [collection, setCollection] = useState([])
-  const [activeTab, setActiveTab] = useState('home') // home | collection | shop | leaderboard | season | referral
+  const [activeTab, setActiveTab] = useState('home') // home | collection | shop | leaderboard | events | referral
+  const [eventsView, setEventsView] = useState('hub') // hub | season_tasks
   const [isFlipping, setIsFlipping] = useState(false)
   const [toast, setToast] = useState(null)
   const [leaderboard, setLeaderboard] = useState([])
@@ -66,7 +67,7 @@ function App() {
   }, [])
 
   const fetchCollection = async () => {
-    if (!user) return;
+    if (!user || fetchingCollection) return;
     setFetchingCollection(true);
     try {
       setLastError(null);
@@ -137,7 +138,7 @@ function App() {
   useEffect(() => {
     if (activeTab === 'collection') fetchCollection()
     if (activeTab === 'leaderboard') fetchLeaderboard(lbMode)
-    if (activeTab === 'season' && user) fetchSeason(user.id)
+    if (activeTab === 'events' && user) fetchSeason(user.id)
     if (activeTab === 'referral' && user) fetchReferral(user.id)
   }, [activeTab, user])
 
@@ -345,7 +346,7 @@ function App() {
             UAIFU
           </h1>
           <div className="flex gap-1.5">
-            {[['home','🎲'],['collection','🎴'],['shop','🛒'],['leaderboard','🏆'],['season','🎯'],['referral','🔗']].map(([tab, icon]) => (
+            {[['home','🎲'],['collection','🎴'],['shop','🛒'],['leaderboard','🏆'],['events','🎯'],['referral','🔗']].map(([tab, icon]) => (
               <button
                 key={tab}
                 onClick={() => { setActiveTab(tab); triggerHaptic('selection'); }}
@@ -564,51 +565,101 @@ function App() {
             </div>
           </div>
 
-        ) : activeTab === 'season' ? (
-          <div className="w-full max-w-md animate-fade-in flex-1">
-            {season?.active ? (
-              <>
-                <div className="flex justify-between items-center mb-1">
-                  <h2 className="text-xl font-black tracking-tight">🎯 {season.season_name}</h2>
+        ) : activeTab === 'events' ? (
+          <div className="w-full max-w-md animate-fade-in flex-1 flex flex-col">
+            {eventsView === 'hub' ? (
+              <div className="flex-1 flex flex-col">
+                <h2 className="text-xl font-black tracking-tighter mb-1 uppercase text-cyan-400">Центр Подій</h2>
+                <p className="text-[10px] text-slate-500 mb-5 font-bold tracking-wider">Грай, перемагай та забирай нагороди</p>
+
+                <div className="flex flex-col gap-4">
+                  {/* Season Card */}
+                  <div 
+                    onClick={() => setEventsView('season_tasks')}
+                    className="group relative bg-gradient-to-br from-blue-600/30 to-purple-600/10 border border-blue-500/40 rounded-[2rem] p-5 overflow-hidden active:scale-95 transition-all cursor-pointer shadow-xl"
+                  >
+                    <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-125 transition-transform">🎯</div>
+                    <div className="flex flex-col relative z-10">
+                      <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-1">Активний Сезон</span>
+                      <span className="text-lg font-black text-white">{season?.season_name || "Завантаження..."}</span>
+                      <div className="mt-3 flex items-center gap-3">
+                        <div className="flex-1 bg-slate-900/60 rounded-full h-1.5 overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                            style={{ width: season?.active ? `${Math.min(100, (season.tasks.filter(t => t.completed).length / season.tasks.length) * 100)}%` : '0%' }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-black text-blue-400">{season?.active ? `${season.tasks.filter(t => t.completed).length}/${season.tasks.length}` : '0/0'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dice Mini-Game Placeholder */}
+                  <div className="group bg-slate-800/40 border border-slate-700/50 rounded-[2rem] p-5 flex items-center justify-between relative overflow-hidden opacity-80 grayscale-[0.5] hover:grayscale-0 transition-all cursor-not-allowed">
+                     <div className="flex flex-col">
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Міні-Гра (Скоро)</span>
+                       <span className="text-lg font-black text-slate-300">DICE DUEL 🎲</span>
+                       <span className="text-[9px] text-slate-500 mt-1">Змагайся з іншими гравцями на монети</span>
+                     </div>
+                     <div className="w-10 h-10 bg-slate-900/60 rounded-xl flex items-center justify-center text-xl opacity-30">🔌</div>
+                  </div>
+
+                  {/* Future Events Placeholder */}
+                  <div className="bg-slate-800/20 border border-dashed border-slate-700/50 rounded-[2rem] p-6 flex items-center justify-center">
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Більше івентів у розробці...</span>
+                  </div>
                 </div>
-                <div className="text-[10px] text-slate-400 mb-4">Залишилось днів: <span className="text-cyan-400 font-bold">{season.days_left}</span></div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col">
+                <div className="flex items-center gap-2 mb-4">
+                  <button 
+                    onClick={() => setEventsView('hub')}
+                    className="p-2 bg-slate-800 rounded-xl border border-slate-700 text-xs active:scale-90 transition-all"
+                  >←</button>
+                  <h2 className="text-lg font-black tracking-tight uppercase">{season?.season_name}</h2>
+                </div>
+
+                <div className="text-[10px] text-slate-400 mb-4 px-1">До кінця сезону: <span className="text-cyan-400 font-bold">{season?.days_left} днів</span></div>
+                
                 <div className="flex flex-col gap-3 pb-20">
-                  {season.tasks.map(task => (
-                    <div key={task.id} className={`p-3 rounded-2xl border ${
-                      task.claimed ? 'bg-emerald-900/20 border-emerald-500/30 opacity-60' :
-                      task.completed ? 'bg-blue-900/20 border-blue-500/30' :
+                  {season?.tasks.map(task => (
+                    <div key={task.id} className={`p-4 rounded-[1.5rem] border transition-all ${
+                      task.claimed ? 'bg-emerald-900/10 border-emerald-500/20 opacity-60' :
+                      task.completed ? 'bg-blue-900/20 border-blue-500/30 shadow-[0_5px_15px_rgba(59,130,246,0.1)]' :
                       'bg-slate-800/40 border-slate-700/50'
                     }`}>
                       <div className="flex justify-between items-start mb-2">
-                        <div className="font-bold text-sm">{task.title}</div>
-                        <div className="text-[10px] text-slate-400 text-right whitespace-nowrap ml-2">
-                          {task.reward_coins > 0 && <span>+{task.reward_coins}🪙 </span>}
-                          {task.reward_energy > 0 && <span>+{task.reward_energy}⚡</span>}
+                        <div className="font-bold text-sm leading-tight pr-4">{task.title}</div>
+                        <div className="flex flex-col items-end shrink-0">
+                          {task.reward_coins > 0 && <span className="text-[10px] font-black text-yellow-500">+{task.reward_coins}🪙</span>}
+                          {task.reward_energy > 0 && <span className="text-[10px] font-black text-cyan-400">+{task.reward_energy}⚡</span>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-slate-900/60 rounded-full h-2 overflow-hidden">
-                          <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${Math.min(100, (task.progress / task.target) * 100)}%` }} />
+                      <div className="flex items-center gap-3 mt-3">
+                        <div className="flex-1 bg-slate-900/60 rounded-full h-2 overflow-hidden border border-slate-800/50">
+                          <div className={`h-full rounded-full transition-all duration-500 ${task.completed ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-slate-700'}`} style={{ width: `${Math.min(100, (task.progress / task.target) * 100)}%` }} />
                         </div>
-                        <span className="text-[10px] text-slate-400 whitespace-nowrap">{task.progress}/{task.target}</span>
+                        <span className="text-[10px] font-black text-slate-500 tabular-nums">{task.progress}/{task.target}</span>
                         {task.claimed ? (
-                          <span className="text-[10px] text-emerald-400 font-black">✓</span>
+                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs shadow-inner">✓</div>
                         ) : task.completed ? (
                           <button
                             onClick={() => claimSeasonTask(task.id)}
                             disabled={claimingTask === task.id}
-                            className="px-3 py-1 rounded-lg bg-emerald-500 text-black text-[10px] font-black active:scale-95 transition-all"
+                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-black text-[10px] font-black active:scale-95 transition-all shadow-lg hover:shadow-emerald-500/20 animate-pulse"
                           >Забрати</button>
                         ) : null}
                       </div>
                     </div>
                   ))}
+                  {!season?.active && (
+                    <div className="text-center opacity-40 py-20">
+                      <div className="text-4xl mb-4">⏳</div>
+                      <div>Зараз немає активного сезону</div>
+                    </div>
+                  )}
                 </div>
-              </>
-            ) : (
-              <div className="text-center opacity-40 py-20">
-                <div className="text-4xl mb-4">⏳</div>
-                <div>Зараз немає активного сезону</div>
               </div>
             )}
           </div>
