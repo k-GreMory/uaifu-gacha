@@ -789,7 +789,7 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
 
   useEffect(() => {
     // Load All Game Assets (Single Source of Truth)
-    const V = '1.3'
+    const V = '1.4'
     const loadImg = (src, ref) => {
         const img = new Image(); img.src = `${src}?v=${V}`; 
         img.onload = () => { ref.current = img }
@@ -881,8 +881,8 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
   const draw = (ctx) => {
     ctx.clearRect(0, 0, 400, 600)
     
-    // Day Sky
-    ctx.fillStyle = '#38bdf8' // Brighter Blue
+    // Day Sky (Synced to asset color)
+    ctx.fillStyle = '#29abe2' 
     ctx.fillRect(0, 0, 400, 600)
 
     // Sun (Solid Pixel-Art Diamond - NO ALPHA SHADES)
