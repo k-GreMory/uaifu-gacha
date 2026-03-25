@@ -1,6 +1,6 @@
-from fastapi import FastAPI
 import random
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import func
 
 import models
+from auth import TelegramAuthUser, get_authenticated_telegram_user
 from database import engine, SessionLocal, get_db
 from cards_data import CARDS, RARITY_CHANCES
 
@@ -160,6 +161,10 @@ bootstrap_system()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+DRONE_SESSION_TTL_MINUTES = int(os.getenv("DRONE_SESSION_TTL_MINUTES", "15"))
+MAX_DRONE_COINS_PER_RUN = int(os.getenv("MAX_DRONE_COINS_PER_RUN", "50"))
+MAX_DRONE_SCORE_PER_SECOND = float(os.getenv("MAX_DRONE_SCORE_PER_SECOND", "0.75"))
+DRONE_SCORE_GRACE = int(os.getenv("DRONE_SCORE_GRACE", "10"))
 
 app = FastAPI(title="UAIFU Admin API", version="1.0.0")
 
@@ -212,6 +217,20 @@ class UserCardInfo(BaseModel):
     image: str
     duplicates: int
     acquired_at: Optional[datetime] = None
+
+class DroneSessionResponse(BaseModel):
+    session_token: str
+    expires_in_seconds: int
+
+class DroneRewardRequest(BaseModel):
+    session_token: str
+    score: int
+
+class DroneRewardResponse(BaseModel):
+    status: str
+    coins_added: int
+    new_balance: int
+    user_stats: UserState
 
 def update_energy(db: Session, user: models.User):
     now = datetime.now(timezone.utc).replace(tzinfo=None) # Keep tz naive for sqlite
@@ -270,15 +289,51 @@ def get_or_create_user(db: Session, user_id: int, username: Optional[str] = None
             db.refresh(user)
     return user
 
+def get_current_user(
+    auth_user: TelegramAuthUser = Depends(get_authenticated_telegram_user),
+    db: Session = Depends(get_db),
+):
+    return get_or_create_user(
+        db,
+        auth_user.id,
+        username=auth_user.username,
+        first_name=auth_user.first_name,
+    )
+
+def create_drone_game_session(db: Session, user_id: int):
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.query(models.DroneGameSession).filter(
+        models.DroneGameSession.user_id == user_id,
+        models.DroneGameSession.status == "active"
+    ).update({models.DroneGameSession.status: "replaced"})
+
+    session = models.DroneGameSession(
+        user_id=user_id,
+        session_token=secrets.token_urlsafe(24),
+        status="active",
+        created_at=now,
+        expires_at=now + timedelta(minutes=DRONE_SESSION_TTL_MINUTES),
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
+def get_max_allowed_drone_score(session: models.DroneGameSession):
+    elapsed_seconds = max(
+        1,
+        int((datetime.now(timezone.utc).replace(tzinfo=None) - session.created_at).total_seconds()),
+    )
+    return int(elapsed_seconds * MAX_DRONE_SCORE_PER_SECOND) + DRONE_SCORE_GRACE
+
 @app.get("/user", response_model=UserState)
-async def get_user(user_id: int, username: Optional[str] = None, first_name: Optional[str] = None, db: Session = Depends(get_db)):
-    user = get_or_create_user(db, user_id, username=username, first_name=first_name)
-    return get_user_state(db, user)
+async def get_user(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return get_user_state(db, current_user)
 
 @app.get("/spin", response_model=SpinResult)
-async def spin(user_id: int, db: Session = Depends(get_db)):
+async def spin(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     # 1. Get/Create user and update energy
-    user = get_or_create_user(db, user_id)
+    user = current_user
     
     if user.energy < 1:
         raise HTTPException(status_code=400, detail="Недостатньо енергії! Зачекай або купи за монети.")
@@ -357,8 +412,8 @@ async def spin(user_id: int, db: Session = Depends(get_db)):
     }
 
 @app.post("/buy_energy")
-async def buy_energy(user_id: int, db: Session = Depends(get_db)):
-    user = get_or_create_user(db, user_id)
+async def buy_energy(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = current_user
     if user.energy >= user.max_energy:
         raise HTTPException(status_code=400, detail="Енергія вже повна! Спочатку витрать хоча б 1 ⚡")
     if user.coins < 1000:
@@ -379,8 +434,8 @@ async def buy_energy(user_id: int, db: Session = Depends(get_db)):
     }
 
 @app.get("/premium_spin", response_model=SpinResult)
-async def premium_spin(user_id: int, db: Session = Depends(get_db)):
-    user = get_or_create_user(db, user_id)
+async def premium_spin(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = current_user
     
     if user.coins < 10000:
         raise HTTPException(status_code=400, detail="Недостатньо монет! Потрібно 10,000 🪙")
@@ -458,8 +513,8 @@ async def premium_spin(user_id: int, db: Session = Depends(get_db)):
     }
 
 @app.get("/collection", response_model=List[UserCardInfo])
-async def get_collection(user_id: int, db: Session = Depends(get_db)):
-    user_cards = db.query(models.UserCard).filter(models.UserCard.user_id == user_id).all()
+async def get_collection(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user_cards = db.query(models.UserCard).filter(models.UserCard.user_id == current_user.id).all()
     
     result = []
     for uc in user_cards:
@@ -521,13 +576,13 @@ async def get_leaderboard(mode: str = "spins", db: Session = Depends(get_db)):
 # --- Referral System ---
 
 @app.get("/referral/link")
-async def get_referral_link(user_id: int, db: Session = Depends(get_db)):
-    user = get_or_create_user(db, user_id)
+async def get_referral_link(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = current_user
     bot_name = os.getenv("BOT_NAME", "uaifu_bot")
     link = f"https://t.me/{bot_name}?start=ref_{user.id}"
     
     # Count how many people this user has referred
-    ref_count = db.query(models.Referral).filter(models.Referral.referrer_id == user_id).count()
+    ref_count = db.query(models.Referral).filter(models.Referral.referrer_id == user.id).count()
     
     return {
         "link": link,
@@ -536,8 +591,9 @@ async def get_referral_link(user_id: int, db: Session = Depends(get_db)):
     }
 
 @app.post("/referral/claim")
-async def claim_referral(user_id: int, ref_id: int, db: Session = Depends(get_db)):
+async def claim_referral(ref_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Called when a new user joins via referral link (ref_id = who invited them)"""
+    user_id = current_user.id
     if user_id == ref_id:
         raise HTTPException(status_code=400, detail="Не можна запросити самого себе 🙃")
     
@@ -547,7 +603,7 @@ async def claim_referral(user_id: int, ref_id: int, db: Session = Depends(get_db
         raise HTTPException(status_code=400, detail="Реферал вже зареєстровано")
     
     # Make sure both users exist
-    new_user = get_or_create_user(db, user_id)
+    new_user = current_user
     referrer = db.query(models.User).filter(models.User.id == ref_id).first()
     if not referrer:
         raise HTTPException(status_code=404, detail="Запрошувач не знайдений")
@@ -613,13 +669,14 @@ def ensure_season_exists(db: Session):
     return season
 
 @app.get("/season")
-async def get_season(user_id: int, db: Session = Depends(get_db)):
+async def get_season(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     ensure_season_exists(db)
     season = get_active_season(db)
     if not season:
         return {"active": False, "message": "Зараз немає активного сезону"}
     
-    user = get_or_create_user(db, user_id)
+    user = current_user
+    user_id = current_user.id
     unique_cards = db.query(func.count(models.UserCard.id)).filter(models.UserCard.user_id == user_id).scalar() or 0
     premium_spins = db.query(func.count(models.PurchaseLog.id)).filter(
         models.PurchaseLog.user_id == user_id,
@@ -669,12 +726,13 @@ async def get_season(user_id: int, db: Session = Depends(get_db)):
     }
 
 @app.post("/season/claim")
-async def claim_season_reward(user_id: int, task_id: int, db: Session = Depends(get_db)):
+async def claim_season_reward(task_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     task = db.query(models.SeasonTask).filter(models.SeasonTask.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Задача не знайдена")
     
-    user = get_or_create_user(db, user_id)
+    user = current_user
+    user_id = current_user.id
     unique_cards = db.query(func.count(models.UserCard.id)).filter(models.UserCard.user_id == user_id).scalar() or 0
     premium_spins = db.query(func.count(models.PurchaseLog.id)).filter(
         models.PurchaseLog.user_id == user_id,
@@ -821,37 +879,59 @@ admin.add_view(ReferralAdmin)
 admin.add_view(SeasonAdmin)
 admin.add_view(SeasonTaskAdmin)
 
-@app.post("/games/drone/reward")
-async def drone_reward(data: dict, db: Session = Depends(get_db)):
-    user_id = data.get("user_id")
-    if user_id is None:
-        raise HTTPException(status_code=400, detail="Missing user_id")
+@app.post("/games/drone/start", response_model=DroneSessionResponse)
+async def start_drone_game(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    session = create_drone_game_session(db, current_user.id)
+    return {
+        "session_token": session.session_token,
+        "expires_in_seconds": DRONE_SESSION_TTL_MINUTES * 60,
+    }
 
-    try:
-        user_id = int(user_id)
-        score = max(0, int(data.get("score", 0)))
-        requested_coins = max(0, int(data.get("coins", 0)))
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="Invalid reward payload")
+@app.post("/games/drone/reward", response_model=DroneRewardResponse)
+async def drone_reward(
+    data: DroneRewardRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    score = max(0, int(data.score))
+    session = db.query(models.DroneGameSession).filter(
+        models.DroneGameSession.session_token == data.session_token,
+        models.DroneGameSession.user_id == current_user.id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Game session not found")
 
-    user = get_or_create_user(db, user_id)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if session.status != "active":
+        raise HTTPException(status_code=400, detail="Game session already used")
+    if session.expires_at <= now:
+        session.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=400, detail="Game session expired")
 
-    # Basic server-side validation
-    # Max coins is capped at 50 per game to prevent abuse
-    expected_coins = min(score // 5, 50)
-    coins_to_add = min(requested_coins, expected_coins)
+    max_allowed_score = get_max_allowed_drone_score(session)
+    if score > max_allowed_score:
+        raise HTTPException(status_code=400, detail="Suspicious score rejected")
+
+    coins_to_add = min(score // 5, MAX_DRONE_COINS_PER_RUN)
+    session.best_score = score
+    session.reward_coins = coins_to_add
+    session.status = "claimed"
+    session.claimed_at = now
 
     if coins_to_add > 0:
-        user.coins += coins_to_add
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        current_user.coins += coins_to_add
+
+    db.add(current_user)
+    db.add(session)
+    db.commit()
+    db.refresh(current_user)
 
     return {
         "status": "success",
         "coins_added": coins_to_add,
-        "new_balance": user.coins,
-        "user_stats": get_user_state(db, user)
+        "new_balance": current_user.coins,
+        "user_stats": get_user_state(db, current_user)
     }
 
 if __name__ == "__main__":

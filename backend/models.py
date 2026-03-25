@@ -3,6 +3,10 @@ from sqlalchemy.orm import relationship
 import datetime
 from database import Base
 
+
+def utcnow_naive():
+    return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+
 class User(Base):
     __tablename__ = "users"
 
@@ -12,7 +16,7 @@ class User(Base):
     energy = Column(Integer, default=20)
     max_energy = Column(Integer, default=20)
     coins = Column(Integer, default=0)
-    last_energy_update = Column(DateTime, default=datetime.datetime.utcnow)
+    last_energy_update = Column(DateTime, default=utcnow_naive)
     total_spins = Column(Integer, default=0)  # For leaderboard
     referred_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
@@ -40,7 +44,7 @@ class UserCard(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     card_id = Column(String, ForeignKey("cards.id"), index=True)
     duplicates = Column(Integer, default=0)
-    acquired_at = Column(DateTime, default=datetime.datetime.utcnow)
+    acquired_at = Column(DateTime, default=utcnow_naive)
 
     owner = relationship("User", back_populates="collection")
     card = relationship("Card")
@@ -55,7 +59,7 @@ class SpinLog(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     card_id = Column(String, ForeignKey("cards.id"))
     is_duplicate = Column(Boolean, default=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=utcnow_naive)
 
     owner = relationship("User")
     card = relationship("Card")
@@ -70,10 +74,28 @@ class PurchaseLog(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     item = Column(String)
     cost = Column(Integer)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=utcnow_naive)
 
     def __str__(self):
         return f"Purchase {self.id}: {self.item} (Cost {self.cost})"
+
+class DroneGameSession(Base):
+    __tablename__ = "drone_game_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    session_token = Column(String, unique=True, index=True, nullable=False)
+    status = Column(String, default="active", nullable=False)
+    best_score = Column(Integer, default=0)
+    reward_coins = Column(Integer, default=0)
+    created_at = Column(DateTime, default=utcnow_naive, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    claimed_at = Column(DateTime, nullable=True)
+
+    owner = relationship("User")
+
+    def __str__(self):
+        return f"DroneSession {self.id}: {self.user_id} ({self.status})"
 
 # --- Referral System ---
 class Referral(Base):
@@ -83,7 +105,7 @@ class Referral(Base):
     referrer_id = Column(Integer, ForeignKey("users.id"), index=True)  # who invited
     invited_id = Column(Integer, ForeignKey("users.id"), unique=True)  # who was invited
     rewarded = Column(Boolean, default=False)  # bonus given?
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow_naive)
 
     def __str__(self):
         return f"Referral: {self.referrer_id} -> {self.invited_id}"

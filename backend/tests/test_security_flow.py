@@ -1,0 +1,183 @@
+import asyncio
+import hashlib
+import hmac
+import json
+import os
+import sys
+import tempfile
+import time
+import unittest
+from datetime import datetime, timedelta
+from pathlib import Path
+from urllib.parse import urlencode
+
+from fastapi import HTTPException
+from starlette.requests import Request
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+TEST_DB_PATH = Path(tempfile.gettempdir()) / "uaifu_security_flow_test.db"
+
+if TEST_DB_PATH.exists():
+    TEST_DB_PATH.unlink()
+
+os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH.as_posix()}"
+os.environ["BOT_TOKEN"] = "123456:TEST_BOT_TOKEN"
+os.environ["ALLOW_DEV_AUTH"] = "true"
+os.environ["TELEGRAM_AUTH_MAX_AGE_SECONDS"] = "86400"
+
+sys.path.insert(0, str(BACKEND_DIR))
+
+from auth import get_authenticated_telegram_user
+import main
+import models
+from database import SessionLocal
+
+
+def build_signed_init_data(user_id: int, username: str = "tester", first_name: str = "Tester", auth_date: int | None = None):
+    payload = {
+        "auth_date": str(auth_date or int(time.time())),
+        "query_id": "AAEAAAE",
+        "user": json.dumps(
+            {
+                "id": user_id,
+                "username": username,
+                "first_name": first_name,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ),
+    }
+    data_check_string = "\n".join(f"{key}={value}" for key, value in sorted(payload.items()))
+    secret_key = hmac.new(b"WebAppData", os.environ["BOT_TOKEN"].encode("utf-8"), hashlib.sha256).digest()
+    payload["hash"] = hmac.new(
+        secret_key,
+        data_check_string.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return urlencode(payload)
+
+
+def make_request(path: str, headers: dict[str, str] | None = None, query_string: str = "", host: str = "localhost"):
+    encoded_headers = [
+        (key.lower().encode("utf-8"), value.encode("utf-8"))
+        for key, value in (headers or {}).items()
+    ]
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode("utf-8"),
+        "query_string": query_string.encode("utf-8"),
+        "headers": encoded_headers,
+        "client": ("127.0.0.1", 12345),
+        "server": (host, 80),
+    }
+    return Request(scope)
+
+
+def utcnow_naive():
+    return datetime.now()
+
+
+class SecurityFlowTests(unittest.TestCase):
+    def setUp(self):
+        with SessionLocal() as db:
+            db.query(models.DroneGameSession).delete()
+            db.query(models.UserSeasonProgress).delete()
+            db.query(models.Referral).delete()
+            db.query(models.PurchaseLog).delete()
+            db.query(models.SpinLog).delete()
+            db.query(models.UserCard).delete()
+            db.query(models.User).delete()
+            db.commit()
+
+    def auth_headers(self, user_id: int):
+        return {"X-Telegram-Init-Data": build_signed_init_data(user_id)}
+
+    def test_verified_telegram_identity_wins_over_spoofed_query_user(self):
+        request = make_request(
+            "/user",
+            headers=self.auth_headers(10101),
+            query_string="user_id=999999&first_name=Spoofed",
+        )
+        auth_user = get_authenticated_telegram_user(request)
+
+        with SessionLocal() as db:
+            user = main.get_or_create_user(
+                db,
+                auth_user.id,
+                username=auth_user.username,
+                first_name=auth_user.first_name,
+            )
+            state = asyncio.run(main.get_user(current_user=user, db=db))
+            spoofed_user = db.query(models.User).filter(models.User.id == 999999).first()
+
+        self.assertEqual(state["coins"], 0)
+        self.assertEqual(user.id, 10101)
+        self.assertEqual(user.first_name, "Tester")
+        self.assertIsNone(spoofed_user)
+
+    def test_invalid_telegram_signature_is_rejected(self):
+        request = make_request(
+            "/user",
+            headers={"X-Telegram-Init-Data": "user=%7B%22id%22%3A1%7D&auth_date=1&hash=bad"},
+        )
+
+        with self.assertRaises(HTTPException) as context:
+            get_authenticated_telegram_user(request)
+
+        self.assertEqual(context.exception.status_code, 401)
+
+    def test_drone_reward_requires_single_use_session(self):
+        with SessionLocal() as db:
+            user = main.get_or_create_user(db, 20202, first_name="Pilot")
+            session = main.create_drone_game_session(db, user.id)
+            session.created_at = utcnow_naive() - timedelta(seconds=40)
+            session.expires_at = utcnow_naive() + timedelta(minutes=5)
+            db.commit()
+
+            response = asyncio.run(
+                main.drone_reward(
+                    data=main.DroneRewardRequest(session_token=session.session_token, score=10),
+                    current_user=user,
+                    db=db,
+                )
+            )
+            self.assertEqual(response["coins_added"], 2)
+
+            with self.assertRaises(HTTPException) as second_claim:
+                asyncio.run(
+                    main.drone_reward(
+                        data=main.DroneRewardRequest(session_token=session.session_token, score=10),
+                        current_user=user,
+                        db=db,
+                    )
+                )
+
+        self.assertEqual(second_claim.exception.status_code, 400)
+
+    def test_drone_reward_rejects_implausible_score(self):
+        with SessionLocal() as db:
+            user = main.get_or_create_user(db, 30303, first_name="Speedrunner")
+            session = main.create_drone_game_session(db, user.id)
+            session.created_at = utcnow_naive() - timedelta(seconds=5)
+            session.expires_at = utcnow_naive() + timedelta(minutes=5)
+            db.commit()
+
+            with self.assertRaises(HTTPException) as suspicious_score:
+                asyncio.run(
+                    main.drone_reward(
+                        data=main.DroneRewardRequest(session_token=session.session_token, score=100),
+                        current_user=user,
+                        db=db,
+                    )
+                )
+
+        self.assertEqual(suspicious_score.exception.status_code, 400)
+        self.assertEqual(suspicious_score.exception.detail, "Suspicious score rejected")
+
+
+if __name__ == "__main__":
+    unittest.main()

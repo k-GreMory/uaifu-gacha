@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { claimDroneReward } from '../lib/api'
+import { claimDroneReward, startDroneGameRequest } from '../lib/api'
 
 const DRONE_TYPES = ['RED', 'STEALTH']
 const OBSTACLE_TYPES = ['LIGHT', 'CONE']
@@ -24,6 +24,7 @@ function DroneGame({ user, onClose, triggerHaptic }) {
   const [score, setScore] = useState(0)
   const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem('drone_highscore') || '0', 10))
   const [rewardClaimed, setRewardClaimed] = useState(false)
+  const [startingGame, setStartingGame] = useState(false)
 
   const GRAVITY = 0.2
   const JUMP = -4.5
@@ -40,6 +41,7 @@ function DroneGame({ user, onClose, triggerHaptic }) {
   const highScoreRef = useRef(parseInt(localStorage.getItem('drone_highscore') || '0', 10))
   const rewardClaimedRef = useRef(false)
   const pendingRewardRef = useRef(false)
+  const sessionTokenRef = useRef(null)
   const gameStateRef = useRef('START')
   const droneTypeRef = useRef('RED')
   const gameOverHandledRef = useRef(false)
@@ -59,7 +61,21 @@ function DroneGame({ user, onClose, triggerHaptic }) {
     loadImg('/day_theme/traffic_cones.png', conesRef)
   }, [])
 
-  const startGame = () => {
+  const startGame = async () => {
+    if (startingGame) return
+
+    setStartingGame(true)
+    gameStateRef.current = 'STARTING'
+    setGameState('STARTING')
+
+    try {
+      const response = await startDroneGameRequest()
+      sessionTokenRef.current = response.data.session_token
+    } catch (error) {
+      console.error('Start game session error', error)
+      sessionTokenRef.current = null
+    }
+
     birdRef.current = { ...INITIAL_BIRD }
     pipesRef.current = []
     frameCountRef.current = 0
@@ -73,6 +89,7 @@ function DroneGame({ user, onClose, triggerHaptic }) {
     setScore(0)
     setRewardClaimed(false)
     setGameState('PLAYING')
+    setStartingGame(false)
   }
 
   const jump = () => {
@@ -83,7 +100,7 @@ function DroneGame({ user, onClose, triggerHaptic }) {
     }
 
     if (gameStateRef.current === 'START' || gameStateRef.current === 'GAMEOVER') {
-      startGame()
+      void startGame()
     }
   }
 
@@ -95,19 +112,18 @@ function DroneGame({ user, onClose, triggerHaptic }) {
     if (!ctx) return
 
     const claimRewardIfNeeded = async (finalScore) => {
-      if (!user || rewardClaimedRef.current || pendingRewardRef.current) return
-
-      const coins = Math.floor(finalScore / 5)
-      if (coins <= 0) return
+      if (!user || !sessionTokenRef.current || rewardClaimedRef.current || pendingRewardRef.current) return
+      if (finalScore <= 0) return
 
       pendingRewardRef.current = true
       try {
-        await claimDroneReward({ user_id: user.id, score: finalScore, coins })
+        await claimDroneReward({ session_token: sessionTokenRef.current, score: finalScore })
         rewardClaimedRef.current = true
         setRewardClaimed(true)
       } catch (error) {
         console.error('Reward error', error)
       } finally {
+        sessionTokenRef.current = null
         pendingRewardRef.current = false
       }
     }
@@ -295,12 +311,18 @@ function DroneGame({ user, onClose, triggerHaptic }) {
           </div>
         </div>
 
-        {gameState === 'START' && (
+        {(gameState === 'START' || gameState === 'STARTING') && (
           <div className="absolute inset-0 bg-sky-100/40 flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
             <div className="text-5xl mb-6 animate-bounce">🐶</div>
             <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter mb-2">DRONE DASH</h1>
-            <p className="text-xs text-slate-700 mb-8 font-bold">Клікай, щоб летіти.<br />Заробляй 1 монету за 5 очок.</p>
-            <div className="px-8 py-3 bg-slate-900 rounded-2xl text-white font-black text-xs uppercase animate-pulse shadow-xl">Клікніть для старту</div>
+            <p className="text-xs text-slate-700 mb-8 font-bold">
+              {gameState === 'STARTING'
+                ? 'Готуємо безпечну сесію польоту...'
+                : <>Клікай, щоб летіти.<br />Заробляй 1 монету за 5 очок.</>}
+            </p>
+            <div className="px-8 py-3 bg-slate-900 rounded-2xl text-white font-black text-xs uppercase animate-pulse shadow-xl">
+              {gameState === 'STARTING' ? 'ПІДКЛЮЧЕННЯ...' : 'Клікніть для старту'}
+            </div>
           </div>
         )}
 
@@ -312,7 +334,7 @@ function DroneGame({ user, onClose, triggerHaptic }) {
               {score >= 5 ? `Зароблено монет: ${Math.floor(score / 5)} 🪙` : 'Наберіть 5 очок для нагороди!'}
             </div>
             <div className="flex flex-col gap-3 w-full">
-              <button onClick={(event) => { event.stopPropagation(); startGame() }} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl text-xs uppercase transition-all active:scale-95 shadow-lg">Ще раз</button>
+              <button onClick={(event) => { event.stopPropagation(); void startGame() }} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl text-xs uppercase transition-all active:scale-95 shadow-lg">Ще раз</button>
               <button onClick={(event) => { event.stopPropagation(); onClose(score) }} className="w-full py-4 bg-white text-slate-600 font-bold border-2 border-slate-200 rounded-2xl text-xs uppercase transition-all active:scale-95">У хаб</button>
             </div>
           </div>

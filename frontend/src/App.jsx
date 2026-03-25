@@ -136,7 +136,7 @@ function App() {
     setFetchingCollection(true)
     try {
       setLastError(null)
-      setCollection(await fetchCollectionData(userId))
+      setCollection(await fetchCollectionData())
     } catch (error) {
       console.error('Error fetching collection:', error)
       const msg = error.response?.data?.detail || error.message || 'Network Error'
@@ -160,7 +160,7 @@ function App() {
     if (!userId) return
 
     try {
-      setSeason(await fetchSeasonData(userId))
+      setSeason(await fetchSeasonData())
     } catch (error) {
       console.error('Error fetching season:', error)
     }
@@ -170,7 +170,7 @@ function App() {
     if (!currentUser) return
 
     try {
-      setUserStats(await fetchUserStateData(currentUser))
+      setUserStats(await fetchUserStateData())
     } catch (error) {
       console.error('Error fetching user stats:', error)
     }
@@ -182,7 +182,7 @@ function App() {
     setClaimingTask(taskId)
     triggerHaptic('selection')
     try {
-      const response = await claimSeasonTaskRequest(user.id, taskId)
+      const response = await claimSeasonTaskRequest(taskId)
       showToast(response.data.message)
       updateStats(response.data.user_stats)
       await fetchSeason(user.id)
@@ -209,7 +209,7 @@ function App() {
 
       if (activeTab === 'referral' && user?.id) {
         try {
-          setReferralData(await fetchReferralData(user.id))
+          setReferralData(await fetchReferralData())
         } catch (error) {
           console.error('Error fetching referral data:', error)
         }
@@ -237,7 +237,7 @@ function App() {
       if (startParam.startsWith('ref_')) {
         const refId = parseInt(startParam.replace('ref_', ''), 10)
         if (refId && refId !== user.id) {
-          claimReferral(user.id, refId)
+          claimReferral(refId)
             .then(response => showToast(response.data.message))
             .catch(() => {})
         }
@@ -259,7 +259,7 @@ function App() {
         if (newTime === 0) {
           refreshTimeoutId = setTimeout(async () => {
             try {
-              setUserStats(await fetchUserStateData(user))
+              setUserStats(await fetchUserStateData())
             } catch (error) {
               console.error('Error refreshing user stats:', error)
             }
@@ -299,7 +299,7 @@ function App() {
     try {
       const minDelay = new Promise(resolve => setTimeout(resolve, 1400))
       const [response] = await Promise.all([
-        spinRequest(user.id),
+        spinRequest(),
         minDelay
       ])
 
@@ -335,7 +335,7 @@ function App() {
     setLoading(true)
     triggerHaptic('medium')
     try {
-      const response = await buyEnergyRequest(user.id)
+      const response = await buyEnergyRequest()
       showToast(response.data.message)
       updateStats(response.data.user_stats)
     } catch (error) {
@@ -361,7 +361,7 @@ function App() {
     try {
       const minDelay = new Promise(resolve => setTimeout(resolve, 1400))
       const [response] = await Promise.all([
-        premiumSpinRequest(user.id),
+        premiumSpinRequest(),
         minDelay
       ])
 
