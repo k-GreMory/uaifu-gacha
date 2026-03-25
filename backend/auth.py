@@ -9,7 +9,7 @@ from urllib.parse import parse_qsl
 from fastapi import HTTPException, Request
 from pydantic import BaseModel
 
-from config import get_bot_token, is_dev_auth_enabled
+from config import get_bot_token, get_telegram_auth_max_age_seconds, is_dev_auth_enabled
 
 class TelegramAuthUser(BaseModel):
     id: int
@@ -71,7 +71,7 @@ def get_authenticated_telegram_user(request: Request) -> TelegramAuthUser:
     init_data = request.headers.get("X-Telegram-Init-Data", "").strip()
     if init_data:
         try:
-            max_age_seconds = int(os.getenv("TELEGRAM_AUTH_MAX_AGE_SECONDS", "86400"))
+            max_age_seconds = get_telegram_auth_max_age_seconds()
             bot_token = get_bot_token(required=True)
             return validate_telegram_init_data(init_data, bot_token, max_age_seconds)
         except HTTPException:
@@ -79,7 +79,18 @@ def get_authenticated_telegram_user(request: Request) -> TelegramAuthUser:
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         except Exception as exc:
-            raise HTTPException(status_code=401, detail=f"Telegram auth failed: {exc}") from exc
+            message = str(exc)
+            if message == "Telegram auth data expired":
+                raise HTTPException(
+                    status_code=401,
+                    detail="Сесія Telegram застаріла. Перевідкрий мініапку в Telegram."
+                ) from exc
+            if message in {"Invalid Telegram signature", "Missing hash in initData", "Missing Telegram user", "Missing auth_date"}:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Не вдалося підтвердити сесію Telegram. Перевідкрий мініапку в Telegram."
+                ) from exc
+            raise HTTPException(status_code=401, detail=f"Telegram auth failed: {message}") from exc
 
     allow_dev_auth = is_dev_auth_enabled()
     if not allow_dev_auth:

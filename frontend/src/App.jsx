@@ -67,6 +67,10 @@ function App() {
     }))
   }
 
+  const getApiErrorMessage = (error, fallback = 'Помилка мережі') => (
+    error.response?.data?.detail || error.message || fallback
+  )
+
   const showToast = useCallback((message) => {
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current)
@@ -163,8 +167,12 @@ function App() {
       setSeason(await fetchSeasonData())
     } catch (error) {
       console.error('Error fetching season:', error)
+      const msg = getApiErrorMessage(error, 'Не вдалося завантажити сезон')
+      if (error.response?.status === 401) {
+        showToast(msg)
+      }
     }
-  }, [user])
+  }, [showToast, user])
 
   const fetchUserStats = useCallback(async (currentUser = user) => {
     if (!currentUser) return
@@ -173,8 +181,9 @@ function App() {
       setUserStats(await fetchUserStateData())
     } catch (error) {
       console.error('Error fetching user stats:', error)
+      showToast(getApiErrorMessage(error, 'Не вдалося оновити профіль'))
     }
-  }, [user])
+  }, [showToast, user])
 
   const claimSeasonTask = async (taskId) => {
     if (!user) return
@@ -212,12 +221,15 @@ function App() {
           setReferralData(await fetchReferralData())
         } catch (error) {
           console.error('Error fetching referral data:', error)
+          if (error.response?.status === 401) {
+            showToast(getApiErrorMessage(error, 'Не вдалося завантажити реферали'))
+          }
         }
       }
     }
 
     void syncActiveTab()
-  }, [activeTab, fetchCollection, fetchLeaderboard, fetchSeason, lbMode, user])
+  }, [activeTab, fetchCollection, fetchLeaderboard, fetchSeason, lbMode, showToast, user])
 
   useEffect(() => {
     if (activeTab !== 'events' && eventsView !== 'hub') {

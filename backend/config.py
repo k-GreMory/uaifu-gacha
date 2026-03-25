@@ -61,6 +61,10 @@ def get_bot_token(required: bool = False) -> Optional[str]:
     return token or None
 
 
+def get_telegram_auth_max_age_seconds() -> int:
+    return int(os.getenv("TELEGRAM_AUTH_MAX_AGE_SECONDS", "604800"))
+
+
 def get_admin_secret() -> Optional[str]:
     secret = os.getenv("ADMIN_SECRET", "").strip()
     return secret or None
@@ -135,4 +139,5 @@ def validate_runtime_configuration() -> dict[str, object]:
         "dev_auth_enabled": dev_auth_enabled,
         "cors_origins": cors_origins,
         "cors_origin_regex": cors_origin_regex,
+        "telegram_auth_max_age_seconds": get_telegram_auth_max_age_seconds(),
     }
