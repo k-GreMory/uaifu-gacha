@@ -863,23 +863,52 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
 
   const draw = (ctx) => {
     ctx.clearRect(0, 0, 400, 600)
-    ctx.fillStyle = '#020617'
+    
+    // Background Gradient (Cyber City Night)
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, 600)
+    bgGradient.addColorStop(0, '#0f172a') // Top
+    bgGradient.addColorStop(1, '#1e1b4b') // Bottom
+    ctx.fillStyle = bgGradient
     ctx.fillRect(0, 0, 400, 600)
     
-    // Parallax BG (Buildings)
-    ctx.fillStyle = '#0f172a'
-    for(let i=0; i<6; i++) {
-        const x = (i * 120 - (frameCountRef.current * 0.5) % 120)
-        ctx.fillRect(x, 450, 80, 150)
+    // Distant Neon Grid (Floor)
+    ctx.strokeStyle = '#312e81'
+    ctx.lineWidth = 1
+    for(let i=0; i<10; i++) {
+        const y = 450 + i * 20
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(400, y); ctx.stroke();
     }
 
-    // Energy Gates (Pipes)
+    // Parallax BG (Cyber Trees / Skyscrapers)
+    ctx.fillStyle = '#1e293b'
+    for(let i=0; i<6; i++) {
+        const x = (i * 150 - (frameCountRef.current * 0.4) % 150)
+        // Draw stylized "Cyber Buildings/Trees"
+        ctx.fillRect(x, 400, 60, 200)
+        ctx.fillStyle = '#334155'
+        ctx.fillRect(x+10, 420, 10, 10) // Windows
+        ctx.fillRect(x+40, 440, 10, 10)
+        ctx.fillStyle = '#1e293b'
+    }
+
+    // Energy Gates (Pipes) - Now Neon Pink/Violet to match the dog's warmth
     pipesRef.current.forEach(pipe => {
-      ctx.fillStyle = '#38bdf8'
-      ctx.shadowBlur = 10
-      ctx.shadowColor = '#38bdf8'
+      // Glow effect
+      ctx.shadowBlur = 15
+      ctx.shadowColor = '#d946ef'
+      ctx.fillStyle = '#f5d0fe'
+      
+      // Top Gate
       ctx.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.top)
+      // Bottom Gate
       ctx.fillRect(pipe.x, pipe.bottom, PIPE_WIDTH, 600 - pipe.bottom)
+      
+      // Decorative Neon Line
+      ctx.strokeStyle = '#d946ef'
+      ctx.lineWidth = 4
+      ctx.strokeRect(pipe.x + 2, 0, PIPE_WIDTH - 4, pipe.top)
+      ctx.strokeRect(pipe.x + 2, pipe.bottom, PIPE_WIDTH - 4, 600 - pipe.bottom)
+      
       ctx.shadowBlur = 0
     })
 
@@ -892,19 +921,22 @@ const DroneGame = ({ user, onClose, triggerHaptic }) => {
         // Sprite sheet logic: 2x2 grid (using 3 frames)
         const frameWidth = droneImgRef.current.width / 2
         const frameHeight = droneImgRef.current.height / 2
-        const frameIndex = Math.floor(frameCountRef.current / 5) % 3 // Cycle 3 frames
+        const frameIndex = Math.floor(frameCountRef.current / 5) % 3 
         
         const sx = (frameIndex % 2) * frameWidth
         const sy = Math.floor(frameIndex / 2) * frameHeight
         
+        // Add subtle shadow to drone
+        ctx.shadowBlur = 10
+        ctx.shadowColor = 'rgba(0,0,0,0.5)'
+        
         ctx.drawImage(
             droneImgRef.current,
-            sx, sy, frameWidth, frameHeight, // source
-            -birdRef.current.width/2, -birdRef.current.height/2, birdRef.current.width, birdRef.current.height // dest
+            sx, sy, frameWidth, frameHeight,
+            -birdRef.current.width/2, -birdRef.current.height/2, birdRef.current.width, birdRef.current.height
         )
     } else {
-        // Fallback procedural
-        ctx.fillStyle = '#0ea5e9'
+        ctx.fillStyle = '#d946ef'
         ctx.fillRect(-birdRef.current.width/2, -birdRef.current.height/2, birdRef.current.width, birdRef.current.height)
     }
     ctx.restore()
