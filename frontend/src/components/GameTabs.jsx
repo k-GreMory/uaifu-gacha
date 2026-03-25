@@ -75,6 +75,9 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
 }
 
 export function ShopTab({ buyEnergy, loading, premiumSpin, userStats }) {
+  const energyFull = userStats.energy >= userStats.max_energy
+  const canBuyEnergy = !loading && userStats.coins >= 1000 && !energyFull
+
   return (
     <div className="w-full max-w-md animate-fade-in flex-1 flex flex-col items-center py-4">
       <h2 className="text-2xl font-black tracking-tight mb-1 text-yellow-400 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">ЧОРНИЙ РИНОК</h2>
@@ -98,11 +101,17 @@ export function ShopTab({ buyEnergy, loading, premiumSpin, userStats }) {
           </div>
           <button
             onClick={buyEnergy}
-            disabled={loading || userStats.coins < 1000}
-            className={`px-4 py-2.5 rounded-[0.8rem] font-black text-xs transition-all active:scale-95 whitespace-nowrap ${loading || userStats.coins < 1000 ? 'bg-slate-700/50 text-slate-500 border border-slate-600 grayscale' : 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.3)]'}`}
+            disabled={!canBuyEnergy}
+            className={`px-4 py-2.5 rounded-[0.8rem] font-black text-xs transition-all active:scale-95 whitespace-nowrap ${canBuyEnergy ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-slate-700/50 text-slate-500 border border-slate-600 grayscale'}`}
           >
             <div className="flex items-center justify-center gap-1">
-              1,000 <img src="/coin.png" className="w-4 h-4 object-cover object-center" alt="Coins" style={{ imageRendering: 'auto' }} />
+              {energyFull ? (
+                'MAX'
+              ) : (
+                <>
+                  1,000 <img src="/coin.png" className="w-4 h-4 object-cover object-center" alt="Coins" style={{ imageRendering: 'auto' }} />
+                </>
+              )}
             </div>
           </button>
         </div>
@@ -223,7 +232,7 @@ export function CollectionTab({ collection, fetchingCollection, getRarityColor, 
   )
 }
 
-export function LeaderboardTab({ fetchLeaderboard, leaderboard, lbMode, onModeChange, user }) {
+export function LeaderboardTab({ leaderboard, lbMode, onModeChange, user }) {
   return (
     <div className="w-full max-w-md animate-fade-in flex-1">
       <div className="flex justify-between items-center mb-4">
@@ -232,10 +241,7 @@ export function LeaderboardTab({ fetchLeaderboard, leaderboard, lbMode, onModeCh
           {[['spins', '🎲'], ['cards', '🎴']].map(([mode, icon]) => (
             <button
               key={mode}
-              onClick={() => {
-                onModeChange(mode)
-                void fetchLeaderboard(mode)
-              }}
+              onClick={() => onModeChange(mode)}
               className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${lbMode === mode ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}
             >
               {icon}

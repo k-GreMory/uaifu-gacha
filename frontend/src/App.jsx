@@ -323,6 +323,10 @@ function App() {
 
   const buyEnergy = async () => {
     if (!user) return
+    if (userStats.energy >= userStats.max_energy) {
+      showToast('Енергія вже повна! Спочатку витрать хоча б 1 ⚡')
+      return
+    }
     if (userStats.coins < 1000) {
       showToast('Недостатньо монет! Потрібно 1,000 🪙')
       return
@@ -423,7 +427,6 @@ function App() {
   } else if (activeTab === 'leaderboard') {
     content = (
       <LeaderboardTab
-        fetchLeaderboard={fetchLeaderboard}
         leaderboard={leaderboard}
         lbMode={lbMode}
         onModeChange={setLbMode}

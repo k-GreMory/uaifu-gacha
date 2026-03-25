@@ -21,11 +21,16 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 
+load_dotenv()
+
 # Create tables (creates new ones, doesn't migrate existing ones)
 models.Base.metadata.create_all(bind=engine)
 
 # Manual migration for SQLite since metadata.create_all doesn't add columns
 def migrate_database():
+    if engine.dialect.name != "sqlite":
+        return
+
     db = SessionLocal()
     try:
         # Check User table columns
@@ -152,8 +157,6 @@ def bootstrap_system():
         db.close()
 
 bootstrap_system()
-
-load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
@@ -356,6 +359,8 @@ async def spin(user_id: int, db: Session = Depends(get_db)):
 @app.post("/buy_energy")
 async def buy_energy(user_id: int, db: Session = Depends(get_db)):
     user = get_or_create_user(db, user_id)
+    if user.energy >= user.max_energy:
+        raise HTTPException(status_code=400, detail="Енергія вже повна! Спочатку витрать хоча б 1 ⚡")
     if user.coins < 1000:
         raise HTTPException(status_code=400, detail="Недостатньо монет! Потрібно 1,000 🪙")
     
