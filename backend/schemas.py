@@ -48,13 +48,3 @@ class DroneRewardResponse(BaseModel):
     coins_added: int
     new_balance: int
     user_stats: UserState
-
-
-class CollectionRestoreCard(BaseModel):
-    card_id: str
-    duplicates: int = 0
-    acquired_at: Optional[datetime] = None
-
-
-class CollectionRestoreRequest(BaseModel):
-    cards: list[CollectionRestoreCard]

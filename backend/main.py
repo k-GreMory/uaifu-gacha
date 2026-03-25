@@ -1,6 +1,3 @@
-import hashlib
-import hmac
-import json
 import random
 import os
 from datetime import datetime, timedelta, timezone
@@ -15,7 +12,7 @@ from sqlalchemy.sql.expression import func
 import models
 from admin_panel import setup_admin
 from bootstrap import bootstrap_system
-from config import get_bot_token, validate_runtime_configuration
+from config import validate_runtime_configuration
 from database import engine, get_db
 from cards_data import RARITY_CHANCES
 from drone_service import (
@@ -23,7 +20,6 @@ from drone_service import (
     get_max_allowed_drone_score as get_max_allowed_drone_score_impl,
 )
 from schemas import (
-    CollectionRestoreRequest,
     DroneRewardRequest,
     DroneRewardResponse,
     DroneSessionResponse,
@@ -610,91 +606,6 @@ async def drone_reward(
         "coins_added": coins_to_add,
         "new_balance": current_user.coins,
         "user_stats": get_user_state(db, current_user)
-    }
-
-
-@app.post("/internal/recovery/collection")
-async def restore_collection_snapshot(
-    payload: CollectionRestoreRequest,
-    request: Request,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    signature = request.headers.get("X-Recovery-Signature", "").strip()
-    if not signature:
-        raise HTTPException(status_code=401, detail="Missing recovery signature")
-
-    bot_token = get_bot_token(required=True)
-    canonical_payload = json.dumps(
-        payload.model_dump(mode="json"),
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    expected_signature = hmac.new(
-        bot_token.encode("utf-8"),
-        canonical_payload.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
-    if not hmac.compare_digest(signature, expected_signature):
-        raise HTTPException(status_code=401, detail="Invalid recovery signature")
-
-    card_ids = [card.card_id for card in payload.cards]
-    if not card_ids:
-        return {"success": True, "added": 0, "merged": 0, "skipped": 0, "total_cards": 0}
-
-    valid_card_ids = {
-        card_id
-        for (card_id,) in db.query(models.Card.id).filter(models.Card.id.in_(card_ids)).all()
-    }
-    existing_entries = {
-        entry.card_id: entry
-        for entry in db.query(models.UserCard).filter(
-            models.UserCard.user_id == current_user.id,
-            models.UserCard.card_id.in_(card_ids),
-        ).all()
-    }
-
-    added = 0
-    merged = 0
-    skipped = 0
-
-    for card in payload.cards:
-        if card.card_id not in valid_card_ids:
-            skipped += 1
-            continue
-
-        incoming_duplicates = max(0, int(card.duplicates))
-        existing = existing_entries.get(card.card_id)
-        if existing:
-            changed = False
-            if existing.duplicates < incoming_duplicates:
-                existing.duplicates = incoming_duplicates
-                changed = True
-            if card.acquired_at and (existing.acquired_at is None or existing.acquired_at > card.acquired_at):
-                existing.acquired_at = card.acquired_at
-                changed = True
-            if changed:
-                merged += 1
-        else:
-            db.add(models.UserCard(
-                user_id=current_user.id,
-                card_id=card.card_id,
-                duplicates=incoming_duplicates,
-                acquired_at=card.acquired_at,
-            ))
-            added += 1
-
-    db.commit()
-
-    total_cards = db.query(models.UserCard).filter(models.UserCard.user_id == current_user.id).count()
-    return {
-        "success": True,
-        "added": added,
-        "merged": merged,
-        "skipped": skipped,
-        "total_cards": total_cards,
     }
 
 if __name__ == "__main__":
