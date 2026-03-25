@@ -126,9 +126,32 @@ def sync_database():
     finally:
         db.close()
 
-migrate_database()
-sync_database() # Ensure all NEW IDs exist before consolidation renames anything to them
-reconcile_card_duplicates()
+# Initialize database on startup
+def bootstrap_system():
+    # Run only core metadata first
+    models.Base.metadata.create_all(bind=engine)
+    
+    migrate_database()
+    sync_database()
+    reconcile_card_duplicates()
+    
+    # NEW: Cleanup Orphans (UserCard -> Missing Card)
+    db = SessionLocal()
+    try:
+        # Avoid subquery incompatibility in some SQLite versions by fetching manually
+        card_ids = [c.id for c in db.query(models.Card.id).all()]
+        orphans = db.query(models.UserCard).filter(~models.UserCard.card_id.in_(card_ids)).all()
+        if orphans:
+            print(f"Cleaning up {len(orphans)} orphaned cards...")
+            for o in orphans:
+                db.delete(o)
+            db.commit()
+    except Exception as e:
+        print(f"Orphan Cleanup Error: {e}")
+    finally:
+        db.close()
+
+bootstrap_system()
 
 load_dotenv()
 
@@ -137,10 +160,7 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = FastAPI(title="UAIFU Admin API", version="1.0.0")
 
-@app.get("/debug/referrals")
-async def debug_referrals(db: Session = Depends(get_db)):
-    refs = db.query(models.Referral).all()
-    return [{"referrer": r.referrer_id, "invited": r.invited_id, "rewarded": r.rewarded} for r in refs]
+# Removed debug endpoints for production security
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -730,11 +750,14 @@ class CustomAdmin(Admin):
     async def index(self, request: Request):
         db = SessionLocal()
         try:
+            # Safe aggregation for coins
+            total_coins = db.query(func.sum(models.User.coins)).scalar() or 0
+            
             stats = {
                 "total_users": db.query(models.User).count() or 0,
                 "total_cards": db.query(models.Card).count() or 0,
                 "total_spins": db.query(models.SpinLog).count() or 0,
-                "total_coins": 0 # Simplified to avoid any aggregate errors
+                "total_coins": int(total_coins)
             }
             # Hardcoded empty chart data to ensure rendering doesn't fail on SQL
             chart_data = {
