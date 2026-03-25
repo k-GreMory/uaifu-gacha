@@ -748,31 +748,8 @@ from sqladmin.authentication import login_required
 class CustomAdmin(Admin):
     @login_required
     async def index(self, request: Request):
-        db = SessionLocal()
-        try:
-            # Safe aggregation for coins
-            total_coins = db.query(func.sum(models.User.coins)).scalar() or 0
-            
-            stats = {
-                "total_users": db.query(models.User).count() or 0,
-                "total_cards": db.query(models.Card).count() or 0,
-                "total_spins": db.query(models.SpinLog).count() or 0,
-                "total_coins": int(total_coins)
-            }
-            # Hardcoded empty chart data to ensure rendering doesn't fail on SQL
-            chart_data = {
-                "spins": {"labels": [], "values": []},
-                "activities": {"labels": [], "values": []}
-            }
-        except Exception as e:
-            print(f"Stats Error: {e}")
-            stats = {"total_users": 0, "total_cards": 0, "total_spins": 0, "total_coins": 0}
-            chart_data = {"spins": {"labels": [], "values": []}, "activities": {"labels": [], "values": []}}
-        finally:
-            db.close()
-        
         return await self.templates.TemplateResponse(
-            request, "admin_dashboard.html", {"stats": stats, "chart_data": chart_data}
+            request, "admin_dashboard.html", {"stats": {"total_users": 0, "total_cards": 0, "total_spins": 0}, "chart_data": {}}
         )
 
 admin = CustomAdmin(
