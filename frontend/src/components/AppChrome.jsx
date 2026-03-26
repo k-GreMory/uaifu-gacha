@@ -64,24 +64,24 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
   const activeTabMeta = TABS.find(tab => tab.id === activeTab) || TABS[0]
 
   return (
-    <header className="w-full mb-3">
-      <div className="mb-3 flex items-end justify-between gap-3">
-        <div>
-          <div className="text-[9px] font-black uppercase tracking-[0.26em] text-slate-500">Anime Gacha</div>
-          <h1 className="mt-1 text-[1.9rem] leading-none font-black italic tracking-[-0.06em] text-transparent bg-clip-text bg-gradient-to-br from-cyan-300 via-blue-400 to-blue-500 drop-shadow-sm pr-2">
-            UAIFU
+    <header className="mb-2.5 flex w-full flex-col gap-2.5 sm:mb-6 sm:gap-4">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex flex-col">
+          <h1 className="text-xl font-black uppercase tracking-tighter sm:text-2xl italic">
+            UAIFU <span className="text-cyan-400">GACHA</span>
           </h1>
+          <div className="h-0.5 w-8 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_1px_6px_rgba(34,211,238,0.6)]" />
         </div>
 
-        <div className="rounded-full border border-slate-700/70 bg-slate-900/55 px-3 py-1.5 text-right shadow-[0_10px_20px_rgba(2,8,23,0.28)] backdrop-blur-md">
-          <div className="text-[9px] font-black uppercase tracking-[0.18em] text-cyan-300">
+        <div className="rounded-full border border-slate-700/60 bg-slate-900/45 px-2.5 py-1 sm:px-3 sm:py-1.5 shadow-[0_8px_16px_rgba(2,8,23,0.2)] backdrop-blur-md">
+          <div className="text-[8px] font-black uppercase tracking-[0.16em] text-cyan-300 sm:text-[9px]">
             {activeTabMeta.label}
           </div>
         </div>
       </div>
 
-      <div className="rounded-[1.5rem] border border-slate-700/70 bg-slate-900/45 p-1.5 shadow-[0_14px_30px_rgba(2,8,23,0.28)] backdrop-blur-xl">
-        <div className="grid grid-cols-6 gap-1.5">
+      <div className="rounded-[1.2rem] border border-slate-700/70 bg-slate-900/45 p-1 shadow-[0_12px_28px_rgba(2,8,23,0.25)] backdrop-blur-xl sm:p-1.5 sm:rounded-[1.5rem]">
+        <div className="grid grid-cols-6 gap-1 sm:gap-1.5">
           {TABS.map(({ id, icon, label }) => (
             <button
               key={id}
@@ -91,20 +91,20 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
               }}
               title={label}
               aria-label={label}
-              className={`group relative flex min-w-0 flex-col items-center justify-center rounded-[1rem] border px-1 py-2 text-sm font-black transition-all duration-300 active:scale-90 ${
+              className={`group relative flex min-w-0 flex-col items-center justify-center rounded-[0.9rem] border px-1 py-1.5 text-sm font-black transition-all duration-300 active:scale-90 sm:py-2 sm:rounded-[1rem] ${
                 activeTab === id
-                  ? 'border-cyan-400/40 bg-gradient-to-b from-cyan-500/20 to-blue-500/15 text-cyan-200 shadow-[0_10px_22px_rgba(34,211,238,0.2)]'
+                  ? 'border-cyan-400/40 bg-gradient-to-b from-cyan-500/20 to-blue-500/15 text-cyan-200 shadow-[0_8px_18px_rgba(34,211,238,0.2)]'
                   : 'border-transparent bg-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
               <span className={`transition-transform duration-300 ${activeTab === id ? 'scale-110' : 'group-hover:scale-105'}`}>
                 {icon}
               </span>
-              <span className={`mt-1 hidden text-[7px] uppercase tracking-[0.16em] sm:block ${activeTab === id ? 'text-cyan-100 font-black' : 'text-slate-600'}`}>
+              <span className={`mt-0.5 hidden text-[6.5px] uppercase tracking-[0.14em] sm:block ${activeTab === id ? 'text-cyan-100 font-black' : 'text-slate-600'}`}>
                 {label}
               </span>
               {activeTab === id && (
-                <div className="absolute -bottom-0.5 h-1 w-4 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />
+                <div className="absolute -bottom-0.5 h-0.5 w-3 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)] sm:h-1 sm:w-4" />
               )}
             </button>
           ))}
@@ -120,21 +120,21 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
   const collectionPercent = Math.round((collection.length / Math.max(1, userStats.total_cards)) * 100)
 
   return (
-    <div className="w-full max-w-md flex flex-col gap-2.5 mb-3">
-      <div className="grid grid-cols-2 gap-2.5">
-        <div className="glass-card rounded-[1.4rem] p-3 transition-all hover:border-cyan-400/30">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Енергія</span>
-              <span className="mt-1 text-[10px] font-bold text-slate-400">
+    <div className="w-full max-w-md flex flex-col gap-2 mb-2 sm:gap-2.5 sm:mb-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+        <div className="glass-card rounded-[1.2rem] p-2.5 transition-all hover:border-cyan-400/30 sm:rounded-[1.4rem] sm:p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col min-w-0">
+              <span className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500 sm:text-[9px]">Енергія</span>
+              <span className="mt-0.5 truncate text-[9px] font-bold text-slate-400 sm:text-[10px]">
                 {isEnergyFull ? 'Готово' : formatTime(userStats.next_energy_in_seconds)}
               </span>
             </div>
-            <span className={`text-sm font-black ${userStats.energy === 0 ? 'text-red-400' : 'text-cyan-300'}`}>
+            <span className={`text-xs font-black whitespace-nowrap sm:text-sm ${userStats.energy === 0 ? 'text-red-400' : 'text-cyan-300'}`}>
               {userStats.energy}/{userStats.max_energy}
             </span>
           </div>
-          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-800/80">
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-800/80 sm:h-1.5 sm:mt-2.5">
             <div
               className={`h-full progress-glow rounded-full transition-all duration-500 ${userStats.energy === 0 ? 'bg-red-500' : 'bg-cyan-400'}`}
               style={{ width: `${energyPercent}%` }}
@@ -142,16 +142,24 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
           </div>
         </div>
 
-        <div className="glass-card rounded-[1.4rem] p-3 transition-all hover:border-yellow-400/30">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Баланс</span>
-              <span className="mt-1 text-[10px] font-bold text-slate-400">Монети UAIFU</span>
+        <div className="glass-card rounded-[1.2rem] p-2.5 transition-all hover:border-yellow-400/30 sm:rounded-[1.4rem] sm:p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col min-w-0">
+              <span className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500 sm:text-[9px]">Баланс</span>
+              <span className="mt-0.5 truncate text-[9px] font-bold text-slate-400 sm:text-[10px]">Монети UAIFU</span>
             </div>
-            <div className="flex items-center gap-1.5 text-sm font-black text-yellow-400">
-              {userStats.coins.toLocaleString()}
-              <img src="/coin.png" alt="Coins" className="w-4 h-4 animate-bounce-slow" />
+            <div className="flex items-center gap-1 min-w-0">
+              <span className={`font-black whitespace-nowrap text-yellow-300 leading-none ${userStats.coins > 99999 ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
+                {userStats.coins.toLocaleString()}
+              </span>
+              <span className="text-[10px] shrink-0">🪙</span>
             </div>
+          </div>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-800/80 sm:h-1.5 sm:mt-2.5">
+            <div
+              className="h-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.5)] rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, (userStats.coins / 50000) * 100)}%` }}
+            />
           </div>
         </div>
       </div>
@@ -159,20 +167,20 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
       <button
         type="button"
         onClick={onOpenCollection}
-        className="glass-card premium-border relative w-full overflow-hidden rounded-[1.4rem] p-3 text-left transition-all active:scale-[0.98]"
+        className="glass-card premium-border relative w-full overflow-hidden rounded-[1rem] p-2.5 text-left transition-all active:scale-[0.98] sm:rounded-[1.4rem] sm:p-3"
       >
         <div className="flex items-center justify-between gap-3 relative z-10">
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Твій Прогрес</span>
-            <span className="mt-1 text-[11px] font-black text-slate-200">
-              {fetchingCollection ? 'Завантаження...' : 'Колекція персонажів'}
+          <div className="flex flex-col min-w-0">
+            <span className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500 sm:text-[9px]">Прогрес</span>
+            <span className="mt-0.5 truncate text-[10px] font-black text-slate-200 sm:text-[11px]">
+              {fetchingCollection ? 'Завантаження...' : 'Колекцію зібрано'}
             </span>
           </div>
-          <div className="text-[11px] font-black text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+          <div className="text-[9px] font-black text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 sm:text-[11px]">
             {collection.length} / {userStats.total_cards}
           </div>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800/80 relative z-10">
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-800/80 relative z-10 sm:h-1.5 sm:mt-3">
           <div
             className="h-full bg-gradient-to-r from-blue-600 via-cyan-400 to-emerald-400 transition-all duration-700"
             style={{ width: `${collectionPercent}%` }}

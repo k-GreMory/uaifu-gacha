@@ -3,6 +3,9 @@
 
 :root {
   font-family: 'Outfit', sans-serif;
+  --header-p: clamp(0.75rem, 3vh, 1.25rem);
+  --section-gap: clamp(0.5rem, 2vh, 1rem);
+  --glass-b: rgba(255, 255, 255, 0.05);
 }
 
 body {
@@ -278,3 +281,26 @@ body {
 .rank-gold { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
 .rank-silver { color: #cbd5e1; text-shadow: 0 0 10px rgba(203, 213, 225, 0.5); }
 .rank-bronze { color: #d97706; text-shadow: 0 0 10px rgba(217, 119, 6, 0.5); }
+
+/* Mobile Optimization Utilities */
+.mask-right {
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+.mask-both {
+  mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+}
+
+@media (max-width: 640px) {
+  .app-frame {
+    padding-top: 0.5rem !important;
+  }
+}
+
+@media (max-height: 700px) {
+  .app-frame {
+    padding-top: 0.25rem !important;
+  }
+}

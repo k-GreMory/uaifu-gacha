@@ -6,14 +6,14 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
   const energyReady = userStats.energy > 0
 
   return (
-    <div className="w-full flex flex-col items-center flex-1 justify-center py-4">
+    <div className="w-full flex flex-col items-center flex-1 justify-center py-1 sm:py-4">
       {user && !result && (
-        <div className="mb-3 text-slate-400 text-[10px] animate-fade-in text-center font-black uppercase tracking-[0.2em]">
+        <div className="mb-2 text-slate-400 text-[9px] animate-fade-in text-center font-black uppercase tracking-[0.2em] sm:mb-3 sm:text-[10px]">
           Ласкаво просимо, <span className="text-cyan-400">{user.first_name || 'Player'}</span>
         </div>
       )}
 
-      <div className="perspective-1000 relative w-full aspect-[3/4.2] max-w-[290px] group">
+      <div className="perspective-1000 relative w-full flex-1 max-h-[42vh] min-h-[320px] aspect-[3/4] max-w-[280px] group sm:aspect-[3/4.2] sm:max-w-[290px] sm:max-h-none">
         <div className="home-stage-halo" />
         <div
           className={`w-full h-full rounded-[2.7rem] shadow-[0_20px_60px_rgba(0,0,0,0.6)] border-2 transition-transform duration-[800ms] transform-style-3d ${isFlipping ? 'rotate-y-180' : ''} ${result && isFlipping ? getRarityColor(result.rarity) : 'border-slate-700/50 border-dashed bg-slate-950/90'}`}
@@ -62,13 +62,13 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
         </div>
       </div>
 
-      <div className="mt-5 w-full px-2 flex flex-col items-center">
+      <div className="mt-3 w-full px-2 flex flex-col items-center sm:mt-5">
         <button
           onClick={spin}
           disabled={loading || userStats.energy < 1}
-          className={`w-full py-4.5 rounded-[1.4rem] font-black text-xs tracking-[0.25em] uppercase transition-all duration-300 active:scale-95 shadow-xl ${(loading || userStats.energy < 1)
+          className={`w-full py-3.5 rounded-[1.2rem] font-black text-[11px] tracking-[0.2em] uppercase transition-all duration-300 active:scale-95 shadow-xl sm:py-4.5 sm:rounded-[1.4rem] sm:text-xs sm:tracking-[0.25em] ${(loading || userStats.energy < 1)
             ? 'bg-slate-800 text-slate-600 grayscale border border-slate-700/50'
-            : 'shimmer-btn text-white shadow-[0_20px_40px_rgba(37,99,235,0.35)] border border-white/20'
+            : 'shimmer-btn text-white shadow-[0_15px_35px_rgba(37,99,235,0.3)] border border-white/20 sm:shadow-[0_20px_40px_rgba(37,99,235,0.35)]'
           }`}
         >
           {loading ? 'ЗАРУЖАЄМО...' : (userStats.energy < 1 ? `⏳ ${formatTime(userStats.next_energy_in_seconds)}` : 'КРУТИТИ')}
@@ -241,7 +241,7 @@ export function CollectionTab({ collection, fetchingCollection, getRarityColor, 
           )}
         </div>
 
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 mask-right [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {availableRarities.map(rarity => (
             <button
               key={rarity}
