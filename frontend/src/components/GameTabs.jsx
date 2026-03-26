@@ -3,21 +3,39 @@ import { useDeferredValue, useMemo, useRef, useState } from 'react'
 import { BACKEND_URL } from '../lib/api'
 
 export function HomeView({ formatTime, getRarityColor, isFlipping, loading, result, spin, user, userStats }) {
+  const energyReady = userStats.energy > 0
+
   return (
     <div className="w-full flex flex-col items-center flex-1 justify-center py-4">
+      <div className="section-kicker mb-3">Daily Pull Sequence</div>
+
       {user && !result && (
-        <div className="mb-2 text-slate-400 text-[10px] animate-fade-in text-center font-medium">
-          Вітаємо, <span className="text-blue-400 font-bold">{user.first_name || 'Player'}</span>!
+        <div className="mb-3 text-slate-400 text-[10px] animate-fade-in text-center font-medium">
+          Вітаємо, <span className="text-blue-300 font-bold">{user.first_name || 'Player'}</span>! Час шукати наступний вайфу-дроп.
         </div>
       )}
 
-      <div className="perspective-1000 relative w-full aspect-[3/4.2] max-w-[280px] group">
+      {!result && (
+        <div className="mb-4 grid w-full max-w-[320px] grid-cols-2 gap-2">
+          <div className="rounded-[1.2rem] border border-slate-700/70 bg-slate-900/45 px-3 py-2 text-center shadow-[0_12px_24px_rgba(2,8,23,0.24)]">
+            <div className="text-[8px] font-black uppercase tracking-[0.24em] text-slate-500">Spin Cost</div>
+            <div className="mt-1 text-sm font-black text-cyan-300">1 Energy</div>
+          </div>
+          <div className="rounded-[1.2rem] border border-slate-700/70 bg-slate-900/45 px-3 py-2 text-center shadow-[0_12px_24px_rgba(2,8,23,0.24)]">
+            <div className="text-[8px] font-black uppercase tracking-[0.24em] text-slate-500">Premium Tip</div>
+            <div className="mt-1 text-sm font-black text-yellow-300">Rare+</div>
+          </div>
+        </div>
+      )}
+
+      <div className="perspective-1000 relative w-full aspect-[3/4.2] max-w-[290px] group">
+        <div className="home-stage-halo" />
         <div
-          className={`w-full h-full rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-2 transition-transform duration-[800ms] transform-style-3d ${isFlipping ? 'rotate-y-180' : ''} ${result && isFlipping ? getRarityColor(result.rarity) : 'border-slate-700/50 border-dashed bg-slate-800'}`}
+          className={`w-full h-full rounded-[2.7rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-2 transition-transform duration-[800ms] transform-style-3d ${isFlipping ? 'rotate-y-180' : ''} ${result && isFlipping ? getRarityColor(result.rarity) : 'border-slate-700/50 border-dashed bg-slate-800/95'}`}
           style={{ willChange: 'transform' }}
         >
           <div
-            className="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-6 rounded-[2.5rem] bg-slate-800 border-2 border-slate-700/50 border-dashed"
+            className="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-6 rounded-[2.7rem] bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.1),transparent_34%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(15,23,42,0.9))] border-2 border-slate-700/50 border-dashed"
             style={{ transform: 'translateZ(1px)' }}
           >
             <div className="dice-container">
@@ -30,18 +48,22 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
                 <div className="face bottom"><span></span><span></span><span></span><span></span><span></span></div>
               </div>
             </div>
+            <div className="rounded-full border border-slate-700/70 bg-slate-900/70 px-3 py-1 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">
+              Summon Chamber
+            </div>
             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 text-center leading-loose">
               {loading ? <>Тягнемо<br />картку...</> : <>Очікування<br />результату</>}
             </div>
           </div>
 
           <div
-            className={`absolute inset-0 backface-hidden flex flex-col p-3 rounded-[2.5rem] bg-slate-900 border-2 ${result ? getRarityColor(result.rarity) : ''}`}
+            className={`absolute inset-0 backface-hidden flex flex-col p-3 rounded-[2.7rem] bg-slate-900 border-2 ${result ? getRarityColor(result.rarity) : ''}`}
             style={{ transform: 'rotateY(180deg) translateZ(1px)' }}
           >
             {result && (
               <>
                 <div className={`rarity-glow ${getRarityColor(result.rarity).split(' ')[0].replace('text-', 'bg-')}`}></div>
+                {result.rarity === 'Legendary' || result.rarity === 'Mythic' ? <div className="legendary-aura" /> : null}
                 <div className="flex-1 rounded-[1.8rem] bg-[#0b1120] flex items-center justify-center overflow-hidden relative shadow-inner">
                   <img src={result.image} alt={result.name} className="w-full h-full object-cover animate-pop-in" />
                   <div className="absolute bottom-4 left-4 right-4 py-2 rounded-xl bg-black/60 border border-white/10 text-center">
@@ -63,12 +85,20 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
           disabled={loading || userStats.energy < 1}
           className={`w-full py-4 rounded-2xl font-black text-xs tracking-widest uppercase transition-all duration-300 active:scale-95 shadow-xl ${(loading || userStats.energy < 1)
             ? 'bg-slate-800 text-slate-600 grayscale'
-            : 'bg-gradient-to-r from-blue-600 to-purple-700 text-white shadow-blue-500/30'
+            : 'bg-gradient-to-r from-cyan-500 via-blue-600 to-fuchsia-600 text-white shadow-[0_18px_35px_rgba(37,99,235,0.32)]'
           }`}
         >
           {loading ? 'ПРОЦЕС...' : (userStats.energy < 1 ? `⏳ ${formatTime(userStats.next_energy_in_seconds)}` : 'КРУТИТИ')}
         </button>
-        {result && <p className="mt-3 text-[10px] font-bold text-slate-400 animate-fade-in italic">✨ {result.message}</p>}
+        <div className="mt-3 min-h-8 text-center">
+          {result ? (
+            <p className="text-[10px] font-bold text-slate-300 animate-fade-in italic">✨ {result.message}</p>
+          ) : (
+            <p className={`text-[10px] font-bold ${energyReady ? 'text-slate-500' : 'text-amber-400/80'}`}>
+              {energyReady ? 'Звичайний спін тягне 1 випадкову картку.' : 'Енергія відновлюється автоматично кожні 10 хвилин.'}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -254,25 +284,47 @@ export function CollectionTab({ collection, fetchingCollection, getRarityColor, 
       )}
 
       <div className="grid grid-cols-2 gap-3 pb-20">
-        {filteredCollection.map(card => (
-          <div key={card.card_id} className="bg-slate-800/60 backdrop-blur-sm p-2 rounded-2xl border border-slate-700/50 overflow-hidden relative group">
-            <div className="aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-slate-900">
-              <img src={card.image} alt={card.name} loading="lazy" className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" />
+        {filteredCollection.map(card => {
+          const [rarityTextClass, rarityBorderClass, rarityShadowClass] = getRarityColor(card.rarity).split(' ')
+
+          return (
+          <div
+            key={card.card_id}
+            className={`bg-slate-800/70 backdrop-blur-sm p-2 rounded-[1.45rem] border overflow-hidden relative group transition-all duration-300 hover:-translate-y-1 ${rarityBorderClass} ${rarityShadowClass}`}
+          >
+            <div className="absolute inset-x-2 top-2 z-10 flex items-start justify-between gap-2">
+              <span className={`rounded-full border border-black/10 bg-slate-950/85 px-2 py-1 text-[8px] font-black uppercase tracking-[0.18em] ${rarityTextClass}`}>
+                {card.rarity}
+              </span>
+              {card.duplicates > 0 ? (
+                <span className="rounded-full border border-blue-400/20 bg-blue-500/15 px-2 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-blue-200">
+                  Lvl.{card.duplicates + 1}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="aspect-[3/4] rounded-[1.05rem] overflow-hidden mb-2 bg-slate-900">
+              <img src={card.image} alt={card.name} loading="lazy" className="w-full h-full object-cover grayscale-[0.18] group-hover:grayscale-0 group-hover:scale-[1.03] transition-all duration-500" />
+              <div className="pointer-events-none absolute inset-x-2 bottom-[3.4rem] h-16 rounded-full bg-gradient-to-t from-black/30 to-transparent blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             </div>
             <div className="px-1">
-              <div className="text-[11px] font-black truncate leading-tight uppercase flex justify-between gap-1 items-center">
-                <span className="truncate">{card.name}</span>
-                {card.duplicates > 0 && <span className="bg-blue-500/20 text-blue-300 text-[8px] px-1 rounded-sm border border-blue-500/30 whitespace-nowrap">Lvl.{card.duplicates + 1}</span>}
+              <div className="text-[11px] font-black truncate leading-tight uppercase">
+                <span className="truncate block">{card.name}</span>
               </div>
-              <div className={`text-[9px] font-bold ${getRarityColor(card.rarity).split(' ')[0]}`}>
-                {card.rarity}
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <div className={`text-[9px] font-bold ${rarityTextClass}`}>
+                  {card.rarity}
+                </div>
+                <div className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500">
+                  {card.duplicates > 0 ? `${card.duplicates + 1} copies` : '1 copy'}
+                </div>
               </div>
             </div>
             {card.rarity === 'Legendary' && (
               <div className="absolute top-1 right-1 text-xs">⭐</div>
             )}
           </div>
-        ))}
+        )})}
         {collection.length === 0 && (
           <div className="col-span-2 py-20 text-center flex flex-col items-center gap-4 opacity-40">
             <div className="text-5xl">🌑</div>
