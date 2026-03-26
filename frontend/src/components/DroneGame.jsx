@@ -299,43 +299,74 @@ function DroneGame({ user, onClose, triggerHaptic }) {
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center touch-none select-none" onClick={jump}>
       <div className="relative w-full max-w-[400px] aspect-[2/3] overflow-hidden rounded-[2.5rem] border-4 border-slate-900 bg-black">
         <canvas ref={canvasRef} width="400" height="600" className="w-full h-full" />
-        <div className="absolute top-8 left-8 right-8 flex justify-between pointer-events-none">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest drop-shadow-sm">Score</span>
-            <span className="text-3xl font-black text-slate-950 drop-shadow-[0_2px_2px_rgba(255,255,255,0.8)]">{score}</span>
+        <div className="absolute top-6 left-6 right-6 flex justify-between pointer-events-none gap-4">
+          <div className="glass-card px-4 py-2 rounded-2xl flex flex-col border-white/5 backdrop-blur-md shadow-lg">
+            <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Score</span>
+            <span className="text-xl font-black text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] leading-none mt-0.5">{score}</span>
           </div>
-          <div className="text-right">
-            <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">High</span>
-            <span className="text-sm font-black text-slate-800 block">{highScore}</span>
-            {rewardClaimed && <span className="text-[9px] font-black text-emerald-600 uppercase">Coin+ 🪙</span>}
+          <div className="glass-card px-4 py-2 rounded-2xl flex flex-col items-end border-white/5 backdrop-blur-md shadow-lg">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em]">Best</span>
+            <span className="text-sm font-black text-slate-200 block mt-0.5">{highScore}</span>
+            {rewardClaimed && <span className="text-[8px] font-black text-emerald-400 uppercase tracking-tighter absolute -bottom-1.5 right-2 bg-slate-900 px-1.5 rounded-full border border-emerald-500/30">Claimed 🪙</span>}
           </div>
         </div>
 
         {(gameState === 'START' || gameState === 'STARTING') && (
-          <div className="absolute inset-0 bg-sky-100/40 flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
-            <div className="text-5xl mb-6 animate-bounce">🐶</div>
-            <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter mb-2">DRONE DASH</h1>
-            <p className="text-xs text-slate-700 mb-8 font-bold">
-              {gameState === 'STARTING'
-                ? 'Готуємо безпечну сесію польоту...'
-                : <>Клікай, щоб летіти.<br />Заробляй 1 монету за 5 очок.</>}
-            </p>
-            <div className="px-8 py-3 bg-slate-900 rounded-2xl text-white font-black text-xs uppercase animate-pulse shadow-xl">
-              {gameState === 'STARTING' ? 'ПІДКЛЮЧЕННЯ...' : 'Клікніть для старту'}
+          <div className="absolute inset-0 bg-sky-200/30 flex flex-col items-center justify-center p-8 text-center backdrop-blur-lg">
+            <div className="glass-card premium-border p-8 rounded-[2.5rem] flex flex-col items-center shadow-2xl relative">
+              <div className="text-5xl mb-6 drop-shadow-lg">🛸</div>
+              <h1 className="text-3xl font-black text-white italic tracking-tighter mb-1 uppercase">DRONE DASH</h1>
+              <p className="text-[10px] text-cyan-100/70 mb-8 font-black uppercase tracking-widest">Sunny City Edition</p>
+              
+              <div className="text-xs text-slate-200 mb-8 font-bold leading-relaxed max-w-[200px]">
+                {gameState === 'STARTING'
+                  ? 'Initializing neural link...'
+                  : <>Tap to ascend.<br />Collect coins every 5 pts.</>}
+              </div>
+
+              <div className={`px-10 py-4 rounded-2xl text-white font-black text-[11px] uppercase tracking-widest shadow-2xl transition-all ${
+                gameState === 'STARTING' ? 'bg-slate-800 animate-pulse' : 'shimmer-btn border border-white/20 active:scale-95'
+              }`}>
+                {gameState === 'STARTING' ? 'Syncing...' : 'Initiate Flight'}
+              </div>
             </div>
           </div>
         )}
 
         {gameState === 'GAMEOVER' && (
-          <div className="absolute inset-0 bg-white/60 flex flex-col items-center justify-center p-8 text-center animate-fade-in backdrop-blur-lg">
-            <h2 className="text-4xl font-black text-slate-950 italic tracking-tighter mb-2">GAME OVER</h2>
-            <div className="text-2xl font-black text-blue-900 mb-3 drop-shadow-sm">{score} <span className="text-[10px] text-slate-500 uppercase">очок</span></div>
-            <div className="mb-8 text-[11px] font-bold text-slate-700">
-              {score >= 5 ? `Зароблено монет: ${Math.floor(score / 5)} 🪙` : 'Наберіть 5 очок для нагороди!'}
-            </div>
-            <div className="flex flex-col gap-3 w-full">
-              <button onClick={(event) => { event.stopPropagation(); void startGame() }} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl text-xs uppercase transition-all active:scale-95 shadow-lg">Ще раз</button>
-              <button onClick={(event) => { event.stopPropagation(); onClose(score) }} className="w-full py-4 bg-white text-slate-600 font-bold border-2 border-slate-200 rounded-2xl text-xs uppercase transition-all active:scale-95">У хаб</button>
+          <div className="absolute inset-0 bg-slate-950/40 flex flex-col items-center justify-center p-8 text-center animate-fade-up backdrop-blur-xl">
+            <div className="glass-card premium-border p-8 rounded-[2.5rem] flex flex-col items-center shadow-2xl w-full">
+              <h2 className="text-4xl font-black text-white italic tracking-tighter mb-4 uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">Game Over</h2>
+              
+              <div className="flex flex-col items-center mb-6">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] mb-1">Final Result</span>
+                <div className="text-4xl font-black text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]">{score}</div>
+              </div>
+
+              <div className="mb-8 text-[11px] font-black text-slate-300 uppercase tracking-widest">
+                {score >= 5 ? (
+                  <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/30 text-emerald-400">
+                    Rewards: +{Math.floor(score / 5)} 🪙
+                  </div>
+                ) : (
+                  <span className="text-amber-500/80">Get 5 pts for a reward</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 w-full">
+                <button 
+                  onClick={(event) => { event.stopPropagation(); void startGame() }} 
+                  className="w-full py-4 shimmer-btn text-white font-black rounded-2xl text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg border border-white/20"
+                >
+                  Restart Mission
+                </button>
+                <button 
+                  onClick={(event) => { event.stopPropagation(); onClose(score) }} 
+                  className="w-full py-4 glass-card text-slate-400 font-black rounded-2xl text-xs uppercase tracking-widest transition-all active:scale-95 border-slate-700/50"
+                >
+                  Exit to Hub
+                </button>
+              </div>
             </div>
           </div>
         )}

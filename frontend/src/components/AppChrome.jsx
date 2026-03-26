@@ -1,10 +1,43 @@
+const Icons = {
+  Home: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  ),
+  Collection: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/>
+    </svg>
+  ),
+  Shop: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+    </svg>
+  ),
+  Leaderboard: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+    </svg>
+  ),
+  Events: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+    </svg>
+  ),
+  Referral: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+    </svg>
+  )
+}
+
 const TABS = [
-  { id: 'home', icon: '🎲', label: 'Головна' },
-  { id: 'collection', icon: '🎴', label: 'Колекція' },
-  { id: 'shop', icon: '🛒', label: 'Магазин' },
-  { id: 'leaderboard', icon: '🏆', label: 'Лідерборд' },
-  { id: 'events', icon: '🎯', label: 'Події' },
-  { id: 'referral', icon: '🔗', label: 'Реферали' }
+  { id: 'home', icon: <Icons.Home />, label: 'Головна' },
+  { id: 'collection', icon: <Icons.Collection />, label: 'Колекція' },
+  { id: 'shop', icon: <Icons.Shop />, label: 'Магазин' },
+  { id: 'leaderboard', icon: <Icons.Leaderboard />, label: 'Лідерборд' },
+  { id: 'events', icon: <Icons.Events />, label: 'Події' },
+  { id: 'referral', icon: <Icons.Referral />, label: 'Реферали' }
 ]
 
 export function ToastBanner({ toast }) {
@@ -58,17 +91,21 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
               }}
               title={label}
               aria-label={label}
-              className={`group relative flex min-w-0 flex-col items-center justify-center rounded-[1rem] border px-1 py-2 text-sm font-black transition-all duration-300 active:scale-95 ${
+              className={`group relative flex min-w-0 flex-col items-center justify-center rounded-[1rem] border px-1 py-2 text-sm font-black transition-all duration-300 active:scale-90 ${
                 activeTab === id
-                  ? 'border-cyan-400/35 bg-gradient-to-b from-cyan-500/16 to-blue-500/12 text-cyan-200 shadow-[0_10px_22px_rgba(34,211,238,0.12)]'
-                  : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700 hover:bg-slate-800/70'
+                  ? 'border-cyan-400/40 bg-gradient-to-b from-cyan-500/20 to-blue-500/15 text-cyan-200 shadow-[0_10px_22px_rgba(34,211,238,0.2)]'
+                  : 'border-transparent bg-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
-              <span className="text-base leading-none">{icon}</span>
-              <span className={`mt-1 hidden text-[7px] uppercase tracking-[0.16em] sm:block ${activeTab === id ? 'text-cyan-100/80' : 'text-slate-500'}`}>
+              <span className={`transition-transform duration-300 ${activeTab === id ? 'scale-110' : 'group-hover:scale-105'}`}>
+                {icon}
+              </span>
+              <span className={`mt-1 hidden text-[7px] uppercase tracking-[0.16em] sm:block ${activeTab === id ? 'text-cyan-100 font-black' : 'text-slate-600'}`}>
                 {label}
               </span>
-              <span className={`mt-1 h-1 w-1 rounded-full transition-all ${activeTab === id ? 'bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.8)]' : 'bg-transparent'}`} />
+              {activeTab === id && (
+                <div className="absolute -bottom-0.5 h-1 w-4 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />
+              )}
             </button>
           ))}
         </div>
@@ -85,35 +122,35 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
   return (
     <div className="w-full max-w-md flex flex-col gap-2.5 mb-3">
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="rounded-[1.2rem] border border-cyan-500/15 bg-gradient-to-br from-slate-900/90 to-slate-800/60 p-3 shadow-[0_16px_28px_rgba(2,8,23,0.3)]">
+        <div className="glass-card rounded-[1.4rem] p-3 transition-all hover:border-cyan-400/30">
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Енергія</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Енергія</span>
               <span className="mt-1 text-[10px] font-bold text-slate-400">
-                {isEnergyFull ? 'Повний заряд' : `+1 через ${formatTime(userStats.next_energy_in_seconds)}`}
+                {isEnergyFull ? 'Готово' : formatTime(userStats.next_energy_in_seconds)}
               </span>
             </div>
             <span className={`text-sm font-black ${userStats.energy === 0 ? 'text-red-400' : 'text-cyan-300'}`}>
               {userStats.energy}/{userStats.max_energy}
             </span>
           </div>
-          <div className="mt-3 h-2 rounded-full bg-slate-800/90">
+          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-800/80">
             <div
-              className={`h-full rounded-full transition-all ${userStats.energy === 0 ? 'bg-gradient-to-r from-red-500 to-orange-400' : 'bg-gradient-to-r from-cyan-400 to-blue-500'}`}
+              className={`h-full progress-glow rounded-full transition-all duration-500 ${userStats.energy === 0 ? 'bg-red-500' : 'bg-cyan-400'}`}
               style={{ width: `${energyPercent}%` }}
             />
           </div>
         </div>
 
-        <div className="rounded-[1.2rem] border border-yellow-500/15 bg-gradient-to-br from-slate-900/90 to-slate-800/60 p-3 shadow-[0_16px_28px_rgba(2,8,23,0.3)]">
+        <div className="glass-card rounded-[1.4rem] p-3 transition-all hover:border-yellow-400/30">
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Монети</span>
-              <span className="mt-1 text-[10px] font-bold text-slate-400">Для шопу і преміумів</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Баланс</span>
+              <span className="mt-1 text-[10px] font-bold text-slate-400">Монети UAIFU</span>
             </div>
-            <div className="flex items-center gap-1 text-sm font-black text-yellow-400">
-              {userStats.coins}
-              <img src="/coin.png" alt="Coins" className="w-4 h-4 object-cover object-center ml-0.5" style={{ imageRendering: 'auto' }} />
+            <div className="flex items-center gap-1.5 text-sm font-black text-yellow-400">
+              {userStats.coins.toLocaleString()}
+              <img src="/coin.png" alt="Coins" className="w-4 h-4 animate-bounce-slow" />
             </div>
           </div>
         </div>
@@ -122,23 +159,22 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
       <button
         type="button"
         onClick={onOpenCollection}
-        className="w-full rounded-[1.2rem] border border-slate-700/60 bg-slate-900/35 p-3 text-left transition-all active:scale-[0.985] shadow-[0_14px_28px_rgba(2,8,23,0.25)] backdrop-blur-md"
+        className="glass-card premium-border relative w-full overflow-hidden rounded-[1.4rem] p-3 text-left transition-all active:scale-[0.98]"
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 relative z-10">
           <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Колекція</span>
-            <span className="mt-1 text-[11px] font-bold text-slate-300">
-              {fetchingCollection ? 'Синхронізуємо картки...' : 'Переглянути та оновити'}
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Твій Прогрес</span>
+            <span className="mt-1 text-[11px] font-black text-slate-200">
+              {fetchingCollection ? 'Завантаження...' : 'Колекція персонажів'}
             </span>
           </div>
-          <span className="text-[10px] font-black text-blue-300 flex items-center gap-2">
-            {fetchingCollection ? 'Оновлення...' : `${collection.length} / ${userStats.total_cards}`}
-            {!fetchingCollection && <span className="text-slate-500">→</span>}
-          </span>
+          <div className="text-[11px] font-black text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+            {collection.length} / {userStats.total_cards}
+          </div>
         </div>
-        <div className="mt-3 h-2 rounded-full bg-slate-800/90">
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800/80 relative z-10">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 transition-all"
+            className="h-full bg-gradient-to-r from-blue-600 via-cyan-400 to-emerald-400 transition-all duration-700"
             style={{ width: `${collectionPercent}%` }}
           />
         </div>
