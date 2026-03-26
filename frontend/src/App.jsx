@@ -583,14 +583,14 @@ function App() {
   }
 
   return (
-    <div className="uaifu-scene flex min-h-screen w-full flex-col items-center overflow-x-hidden p-3 text-white relative sm:p-5 font-sans select-none">
+    <div className="uaifu-scene relative flex min-h-screen w-full flex-col items-center overflow-x-hidden p-2.5 text-white sm:p-5 font-sans select-none">
       <div className="uaifu-grid" />
       <div className="ambient-orb ambient-orb--a" />
       <div className="ambient-orb ambient-orb--b" />
       <div className="ambient-orb ambient-orb--c" />
       <ToastBanner toast={toast} />
 
-      <div className="app-frame w-full max-w-lg mx-auto flex flex-1 flex-col items-center rounded-[2rem] px-3 pb-5 pt-4 sm:px-4 sm:pt-5">
+      <div className="app-frame mx-auto flex w-full max-w-lg flex-1 flex-col items-center rounded-[1.7rem] px-2.5 pb-5 pt-4 sm:rounded-[2rem] sm:px-4 sm:pt-5">
         <AppHeader
           activeTab={activeTab}
           onTabChange={changeTab}

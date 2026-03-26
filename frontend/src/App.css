@@ -1,10 +1,17 @@
+.uaifu-scene,
+.uaifu-scene *,
+.uaifu-scene *::before,
+.uaifu-scene *::after {
+  box-sizing: border-box;
+}
+
 .uaifu-scene {
   position: relative;
   isolation: isolate;
   background:
-    radial-gradient(circle at top left, rgba(34, 211, 238, 0.14), transparent 28%),
-    radial-gradient(circle at top right, rgba(96, 165, 250, 0.12), transparent 24%),
-    radial-gradient(circle at 50% 120%, rgba(14, 165, 233, 0.16), transparent 34%),
+    radial-gradient(circle at top left, rgba(34, 211, 238, 0.1), transparent 28%),
+    radial-gradient(circle at top right, rgba(96, 165, 250, 0.08), transparent 24%),
+    radial-gradient(circle at 50% 120%, rgba(14, 165, 233, 0.12), transparent 34%),
     linear-gradient(180deg, #07111f 0%, #0b1325 48%, #0f172a 100%);
 }
 
@@ -25,7 +32,7 @@
   border-radius: 9999px;
   filter: blur(40px);
   pointer-events: none;
-  opacity: 0.75;
+  opacity: 0.45;
 }
 
 .ambient-orb--a {
@@ -60,7 +67,7 @@
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.88) 0%, rgba(15, 23, 42, 0.82) 100%);
   box-shadow:
-    0 20px 60px rgba(2, 8, 23, 0.55),
+    0 20px 40px rgba(2, 8, 23, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(16px);
 }
@@ -125,13 +132,17 @@
 }
 
 @media (max-width: 640px) {
+  .uaifu-scene {
+    padding-inline: 10px;
+  }
+
   .app-frame::after {
-    inset-inline: 14px;
+    inset-inline: 12px;
   }
 
   .ambient-orb--a,
   .ambient-orb--b,
   .ambient-orb--c {
-    opacity: 0.55;
+    opacity: 0.35;
   }
 }

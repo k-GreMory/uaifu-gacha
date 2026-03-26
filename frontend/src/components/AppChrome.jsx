@@ -31,25 +31,24 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
   const activeTabMeta = TABS.find(tab => tab.id === activeTab) || TABS[0]
 
   return (
-    <header className="w-full mb-4">
-      <div className="mb-3 flex items-start justify-between gap-3">
+    <header className="w-full mb-3">
+      <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <div className="section-kicker mb-2">Anime Gacha Lab</div>
-          <h1 className="text-[2rem] leading-none font-black italic tracking-[-0.06em] text-transparent bg-clip-text bg-gradient-to-br from-cyan-300 via-blue-400 to-fuchsia-500 drop-shadow-sm pr-2">
+          <div className="text-[9px] font-black uppercase tracking-[0.26em] text-slate-500">Anime Gacha</div>
+          <h1 className="mt-1 text-[1.9rem] leading-none font-black italic tracking-[-0.06em] text-transparent bg-clip-text bg-gradient-to-br from-cyan-300 via-blue-400 to-blue-500 drop-shadow-sm pr-2">
             UAIFU
           </h1>
         </div>
 
-        <div className="rounded-[1.3rem] border border-slate-700/70 bg-slate-900/55 px-3 py-2 text-right shadow-[0_12px_24px_rgba(2,8,23,0.35)] backdrop-blur-md">
-          <div className="text-[8px] font-black uppercase tracking-[0.24em] text-slate-500">Current</div>
-          <div className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300">
+        <div className="rounded-full border border-slate-700/70 bg-slate-900/55 px-3 py-1.5 text-right shadow-[0_10px_20px_rgba(2,8,23,0.28)] backdrop-blur-md">
+          <div className="text-[9px] font-black uppercase tracking-[0.18em] text-cyan-300">
             {activeTabMeta.label}
           </div>
         </div>
       </div>
 
-      <div className="rounded-[1.8rem] border border-slate-700/70 bg-slate-900/45 p-2 shadow-[0_18px_40px_rgba(2,8,23,0.35)] backdrop-blur-xl">
-        <div className="flex gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="rounded-[1.5rem] border border-slate-700/70 bg-slate-900/45 p-1.5 shadow-[0_14px_30px_rgba(2,8,23,0.28)] backdrop-blur-xl">
+        <div className="grid grid-cols-6 gap-1.5">
           {TABS.map(({ id, icon, label }) => (
             <button
               key={id}
@@ -59,14 +58,14 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
               }}
               title={label}
               aria-label={label}
-              className={`group relative flex min-w-[52px] shrink-0 flex-col items-center justify-center rounded-[1.2rem] border px-2.5 py-2 text-sm font-black transition-all duration-300 active:scale-95 ${
+              className={`group relative flex min-w-0 flex-col items-center justify-center rounded-[1rem] border px-1 py-2 text-sm font-black transition-all duration-300 active:scale-95 ${
                 activeTab === id
-                  ? 'border-cyan-400/40 bg-gradient-to-b from-cyan-500/18 to-blue-500/14 text-cyan-200 shadow-[0_12px_28px_rgba(34,211,238,0.16)]'
+                  ? 'border-cyan-400/35 bg-gradient-to-b from-cyan-500/16 to-blue-500/12 text-cyan-200 shadow-[0_10px_22px_rgba(34,211,238,0.12)]'
                   : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700 hover:bg-slate-800/70'
               }`}
             >
               <span className="text-base leading-none">{icon}</span>
-              <span className={`mt-1 text-[8px] uppercase tracking-[0.2em] ${activeTab === id ? 'text-cyan-100/80' : 'text-slate-500'}`}>
+              <span className={`mt-1 hidden text-[7px] uppercase tracking-[0.16em] sm:block ${activeTab === id ? 'text-cyan-100/80' : 'text-slate-500'}`}>
                 {label}
               </span>
               <span className={`mt-1 h-1 w-1 rounded-full transition-all ${activeTab === id ? 'bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.8)]' : 'bg-transparent'}`} />
@@ -85,11 +84,11 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
 
   return (
     <div className="w-full max-w-md flex flex-col gap-2.5 mb-3">
-      <div className="flex gap-2.5">
-        <div className="flex-1 rounded-[1.35rem] border border-cyan-500/15 bg-gradient-to-br from-slate-900/90 to-slate-800/60 p-3 shadow-[0_16px_28px_rgba(2,8,23,0.3)]">
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="rounded-[1.2rem] border border-cyan-500/15 bg-gradient-to-br from-slate-900/90 to-slate-800/60 p-3 shadow-[0_16px_28px_rgba(2,8,23,0.3)]">
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-[0.24em] text-slate-500">Energy Core</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Енергія</span>
               <span className="mt-1 text-[10px] font-bold text-slate-400">
                 {isEnergyFull ? 'Повний заряд' : `+1 через ${formatTime(userStats.next_energy_in_seconds)}`}
               </span>
@@ -106,11 +105,11 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
           </div>
         </div>
 
-        <div className="flex-1 rounded-[1.35rem] border border-yellow-500/15 bg-gradient-to-br from-slate-900/90 to-slate-800/60 p-3 shadow-[0_16px_28px_rgba(2,8,23,0.3)]">
-          <div className="flex items-start justify-between gap-3">
+        <div className="rounded-[1.2rem] border border-yellow-500/15 bg-gradient-to-br from-slate-900/90 to-slate-800/60 p-3 shadow-[0_16px_28px_rgba(2,8,23,0.3)]">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-[0.24em] text-slate-500">Coin Vault</span>
-              <span className="mt-1 text-[10px] font-bold text-slate-400">Ресурс для шопу та преміум спінів</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Монети</span>
+              <span className="mt-1 text-[10px] font-bold text-slate-400">Для шопу і преміумів</span>
             </div>
             <div className="flex items-center gap-1 text-sm font-black text-yellow-400">
               {userStats.coins}
@@ -123,13 +122,13 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
       <button
         type="button"
         onClick={onOpenCollection}
-        className="w-full rounded-[1.3rem] border border-slate-700/60 bg-slate-900/35 p-3 text-left transition-all active:scale-[0.985] shadow-[0_14px_28px_rgba(2,8,23,0.25)] backdrop-blur-md"
+        className="w-full rounded-[1.2rem] border border-slate-700/60 bg-slate-900/35 p-3 text-left transition-all active:scale-[0.985] shadow-[0_14px_28px_rgba(2,8,23,0.25)] backdrop-blur-md"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-[0.24em] text-slate-500">Collection Sync</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Колекція</span>
             <span className="mt-1 text-[11px] font-bold text-slate-300">
-              {fetchingCollection ? 'Синхронізуємо картки...' : 'Швидкий перехід до колекції'}
+              {fetchingCollection ? 'Синхронізуємо картки...' : 'Переглянути та оновити'}
             </span>
           </div>
           <span className="text-[10px] font-black text-blue-300 flex items-center gap-2">

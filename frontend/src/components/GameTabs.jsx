@@ -7,24 +7,9 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
 
   return (
     <div className="w-full flex flex-col items-center flex-1 justify-center py-4">
-      <div className="section-kicker mb-3">Daily Pull Sequence</div>
-
       {user && !result && (
         <div className="mb-3 text-slate-400 text-[10px] animate-fade-in text-center font-medium">
-          Вітаємо, <span className="text-blue-300 font-bold">{user.first_name || 'Player'}</span>! Час шукати наступний вайфу-дроп.
-        </div>
-      )}
-
-      {!result && (
-        <div className="mb-4 grid w-full max-w-[320px] grid-cols-2 gap-2">
-          <div className="rounded-[1.2rem] border border-slate-700/70 bg-slate-900/45 px-3 py-2 text-center shadow-[0_12px_24px_rgba(2,8,23,0.24)]">
-            <div className="text-[8px] font-black uppercase tracking-[0.24em] text-slate-500">Spin Cost</div>
-            <div className="mt-1 text-sm font-black text-cyan-300">1 Energy</div>
-          </div>
-          <div className="rounded-[1.2rem] border border-slate-700/70 bg-slate-900/45 px-3 py-2 text-center shadow-[0_12px_24px_rgba(2,8,23,0.24)]">
-            <div className="text-[8px] font-black uppercase tracking-[0.24em] text-slate-500">Premium Tip</div>
-            <div className="mt-1 text-sm font-black text-yellow-300">Rare+</div>
-          </div>
+          Вітаємо, <span className="text-blue-300 font-bold">{user.first_name || 'Player'}</span>!
         </div>
       )}
 
@@ -47,9 +32,6 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
                 <div className="face top"><span></span><span></span></div>
                 <div className="face bottom"><span></span><span></span><span></span><span></span><span></span></div>
               </div>
-            </div>
-            <div className="rounded-full border border-slate-700/70 bg-slate-900/70 px-3 py-1 text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">
-              Summon Chamber
             </div>
             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 text-center leading-loose">
               {loading ? <>Тягнемо<br />картку...</> : <>Очікування<br />результату</>}
@@ -95,7 +77,7 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
             <p className="text-[10px] font-bold text-slate-300 animate-fade-in italic">✨ {result.message}</p>
           ) : (
             <p className={`text-[10px] font-bold ${energyReady ? 'text-slate-500' : 'text-amber-400/80'}`}>
-              {energyReady ? 'Звичайний спін тягне 1 випадкову картку.' : 'Енергія відновлюється автоматично кожні 10 хвилин.'}
+              {energyReady ? '1 спін = 1 випадкова картка.' : 'Енергія відновлюється автоматично кожні 10 хвилин.'}
             </p>
           )}
         </div>
