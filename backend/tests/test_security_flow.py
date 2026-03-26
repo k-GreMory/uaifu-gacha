@@ -119,6 +119,58 @@ class SecurityFlowTests(unittest.TestCase):
         self.assertEqual(user.first_name, "Tester")
         self.assertIsNone(spoofed_user)
 
+    def test_existing_user_profile_is_not_overwritten_by_later_telegram_data(self):
+        with SessionLocal() as db:
+            original_user = models.User(
+                id=11111,
+                username="liveua",
+                first_name="Liveua",
+            )
+            db.add(original_user)
+            db.commit()
+
+            user = main.get_or_create_user(
+                db,
+                11111,
+                username="debug-user",
+                first_name="Debug",
+            )
+
+        self.assertEqual(user.username, "liveua")
+        self.assertEqual(user.first_name, "Liveua")
+
+    def test_blank_existing_profile_fields_are_filled_from_telegram_data(self):
+        with SessionLocal() as db:
+            original_user = models.User(
+                id=12121,
+                username=None,
+                first_name=None,
+            )
+            db.add(original_user)
+            db.commit()
+
+            user = main.get_or_create_user(
+                db,
+                12121,
+                username="filled-user",
+                first_name="Filled",
+            )
+
+        self.assertEqual(user.username, "filled-user")
+        self.assertEqual(user.first_name, "Filled")
+
+    def test_new_user_creation_stores_telegram_profile_data(self):
+        with SessionLocal() as db:
+            user = main.get_or_create_user(
+                db,
+                13131,
+                username="brand-new",
+                first_name="Brand",
+            )
+
+        self.assertEqual(user.username, "brand-new")
+        self.assertEqual(user.first_name, "Brand")
+
     def test_invalid_telegram_signature_is_rejected(self):
         request = make_request(
             "/user",

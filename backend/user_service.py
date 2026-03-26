@@ -9,6 +9,13 @@ from auth import TelegramAuthUser, get_authenticated_telegram_user
 from database import get_db
 
 
+def normalize_profile_value(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
 def update_energy(db: Session, user: models.User):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     if user.energy < user.max_energy:
@@ -42,33 +49,57 @@ def get_user_state(db: Session, user: models.User):
     }
 
 
+def create_user(
+    db: Session,
+    user_id: int,
+    username: Optional[str] = None,
+    first_name: Optional[str] = None,
+):
+    user = models.User(
+        id=user_id,
+        username=normalize_profile_value(username),
+        first_name=normalize_profile_value(first_name),
+        energy=20,
+        max_energy=20,
+        coins=0,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def fill_missing_user_profile(
+    db: Session,
+    user: models.User,
+    username: Optional[str] = None,
+    first_name: Optional[str] = None,
+):
+    needs_update = False
+    username = normalize_profile_value(username)
+    first_name = normalize_profile_value(first_name)
+
+    if username and not normalize_profile_value(user.username):
+        user.username = username
+        needs_update = True
+    if first_name and not normalize_profile_value(user.first_name):
+        user.first_name = first_name
+        needs_update = True
+
+    if needs_update:
+        db.commit()
+        db.refresh(user)
+
+    return user
+
+
 def get_or_create_user(db: Session, user_id: int, username: Optional[str] = None, first_name: Optional[str] = None):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
-        user = models.User(
-            id=user_id,
-            username=username,
-            first_name=first_name,
-            energy=20,
-            max_energy=20,
-            coins=0,
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        user = create_user(db, user_id, username=username, first_name=first_name)
     else:
-        needs_update = False
-        if username and user.username != username:
-            user.username = username
-            needs_update = True
-        if first_name and user.first_name != first_name:
-            user.first_name = first_name
-            needs_update = True
-
         user = update_energy(db, user)
-        if needs_update:
-            db.commit()
-            db.refresh(user)
+        user = fill_missing_user_profile(db, user, username=username, first_name=first_name)
     return user
 
 

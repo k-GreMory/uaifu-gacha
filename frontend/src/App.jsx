@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 
 import './App.css'
 import { AppHeader, ToastBanner, TopStatsBar } from './components/AppChrome'
@@ -25,6 +25,8 @@ import {
 } from './lib/api'
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1'])
+const TAB_STORAGE_KEY = 'uaifu_active_tab'
+const VALID_TABS = new Set(['home', 'collection', 'shop', 'leaderboard', 'events', 'referral'])
 
 const parseTelegramInitData = (initData = '') => {
   if (!initData) {
@@ -53,17 +55,23 @@ function App() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState(null)
+  const [isSessionBootstrapping, setIsSessionBootstrapping] = useState(true)
   const [telegramStartParam, setTelegramStartParam] = useState('')
   const [userStats, setUserStats] = useState({ energy: 0, max_energy: 20, coins: 0, next_energy_in_seconds: 0, total_cards: 200 })
   const [collection, setCollection] = useState([])
-  const [activeTab, setActiveTab] = useState('home')
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = window.localStorage.getItem(TAB_STORAGE_KEY)
+    return VALID_TABS.has(savedTab) ? savedTab : 'home'
+  })
   const [eventsView, setEventsView] = useState('hub')
   const [isFlipping, setIsFlipping] = useState(false)
   const [toast, setToast] = useState(null)
   const [leaderboard, setLeaderboard] = useState([])
   const [lbMode, setLbMode] = useState('spins')
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false)
   const [season, setSeason] = useState(null)
   const [referralData, setReferralData] = useState(null)
+  const [loadingReferral, setLoadingReferral] = useState(false)
   const [claimingTask, setClaimingTask] = useState(null)
   const [fetchingCollection, setFetchingCollection] = useState(false)
   const [lastError, setLastError] = useState(null)
@@ -93,9 +101,9 @@ function App() {
     }))
   }
 
-  const getApiErrorMessage = (error, fallback = 'Помилка мережі') => (
+  const getApiErrorMessage = useCallback((error, fallback = 'Помилка мережі') => (
     error.response?.data?.detail || error.message || fallback
-  )
+  ), [])
 
   const showToast = useCallback((message) => {
     if (toastTimeoutRef.current) {
@@ -140,6 +148,12 @@ function App() {
     syncPulledCard(spinData)
   }
 
+  const changeTab = useCallback((tab) => {
+    startTransition(() => {
+      setActiveTab(tab)
+    })
+  }, [])
+
   useEffect(() => {
     return () => {
       if (toastTimeoutRef.current) {
@@ -171,7 +185,13 @@ function App() {
       setTelegramStartParam('')
       showToast('Не вдалося підтвердити Telegram-сесію. Перевідкрий мініапку.')
     }
+
+    setIsSessionBootstrapping(false)
   }, [showToast])
+
+  useEffect(() => {
+    window.localStorage.setItem(TAB_STORAGE_KEY, activeTab)
+  }, [activeTab])
 
   const fetchCollection = useCallback(async (userId = user?.id) => {
     if (!userId || collectionFetchInFlightRef.current) return
@@ -193,12 +213,16 @@ function App() {
   }, [showToast, user])
 
   const fetchLeaderboard = useCallback(async (mode = lbMode) => {
+    setLoadingLeaderboard(true)
     try {
       setLeaderboard(await fetchLeaderboardData(mode))
     } catch (error) {
       console.error('Error fetching leaderboard:', error)
+      showToast(getApiErrorMessage(error, 'Не вдалося оновити лідерборд'))
+    } finally {
+      setLoadingLeaderboard(false)
     }
-  }, [lbMode])
+  }, [getApiErrorMessage, lbMode, showToast])
 
   const fetchSeason = useCallback(async (userId = user?.id) => {
     if (!userId) return
@@ -212,7 +236,23 @@ function App() {
         showToast(msg)
       }
     }
-  }, [showToast, user])
+  }, [getApiErrorMessage, showToast, user])
+
+  const fetchReferral = useCallback(async (userId = user?.id) => {
+    if (!userId) return
+
+    setLoadingReferral(true)
+    try {
+      setReferralData(await fetchReferralData())
+    } catch (error) {
+      console.error('Error fetching referral data:', error)
+      if (error.response?.status === 401) {
+        showToast(getApiErrorMessage(error, 'Не вдалося завантажити реферали'))
+      }
+    } finally {
+      setLoadingReferral(false)
+    }
+  }, [getApiErrorMessage, showToast, user])
 
   const fetchUserStats = useCallback(async (currentUser = user) => {
     if (!currentUser) return
@@ -223,7 +263,7 @@ function App() {
       console.error('Error fetching user stats:', error)
       showToast(getApiErrorMessage(error, 'Не вдалося оновити профіль'))
     }
-  }, [showToast, user])
+  }, [getApiErrorMessage, showToast, user])
 
   const claimSeasonTask = async (taskId) => {
     if (!user) return
@@ -257,19 +297,12 @@ function App() {
       }
 
       if (activeTab === 'referral' && user?.id) {
-        try {
-          setReferralData(await fetchReferralData())
-        } catch (error) {
-          console.error('Error fetching referral data:', error)
-          if (error.response?.status === 401) {
-            showToast(getApiErrorMessage(error, 'Не вдалося завантажити реферали'))
-          }
-        }
+        await fetchReferral(user.id)
       }
     }
 
     void syncActiveTab()
-  }, [activeTab, fetchCollection, fetchLeaderboard, fetchSeason, lbMode, showToast, user])
+  }, [activeTab, fetchCollection, fetchLeaderboard, fetchReferral, fetchSeason, lbMode, user])
 
   useEffect(() => {
     if (activeTab !== 'events' && eventsView !== 'hub') {
@@ -407,7 +440,7 @@ function App() {
     setIsFlipping(false)
     setLoading(true)
     triggerHaptic('heavy')
-    setActiveTab('home')
+    changeTab('home')
 
     try {
       const minDelay = new Promise(resolve => setTimeout(resolve, 1400))
@@ -441,6 +474,20 @@ function App() {
   }
 
   if (!user) {
+    if (isSessionBootstrapping) {
+      return (
+        <div className="flex min-h-screen w-full items-center justify-center bg-[#0f172a] px-6 text-white">
+          <div className="max-w-sm rounded-[2rem] border border-slate-700/60 bg-slate-900/70 p-6 text-center shadow-2xl">
+            <div className="mb-4 mx-auto h-12 w-12 rounded-full border-4 border-slate-700 border-t-cyan-400 animate-spin" />
+            <h1 className="mb-2 text-lg font-black uppercase tracking-tight">Підключаємо профіль</h1>
+            <p className="text-sm text-slate-300">
+              Завантажуємо Telegram-сесію та синхронізуємо твої дані.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-[#0f172a] px-6 text-white">
         <div className="max-w-sm rounded-[2rem] border border-slate-700/60 bg-slate-900/70 p-6 text-center shadow-2xl">
@@ -494,7 +541,9 @@ function App() {
       <LeaderboardTab
         leaderboard={leaderboard}
         lbMode={lbMode}
+        loadingLeaderboard={loadingLeaderboard}
         onModeChange={setLbMode}
+        onRefresh={fetchLeaderboard}
         user={user}
       />
     )
@@ -513,6 +562,7 @@ function App() {
   } else if (activeTab === 'referral') {
     content = (
       <ReferralTab
+        loadingReferral={loadingReferral}
         referralData={referralData}
         showToast={showToast}
       />
@@ -539,7 +589,7 @@ function App() {
       <div className="w-full flex flex-col items-center flex-1 max-w-lg mx-auto">
         <AppHeader
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={changeTab}
           triggerHaptic={triggerHaptic}
         />
 
@@ -547,7 +597,8 @@ function App() {
           <TopStatsBar
             collection={collection}
             fetchingCollection={fetchingCollection}
-            onOpenCollection={() => setActiveTab('collection')}
+            formatTime={formatTime}
+            onOpenCollection={() => changeTab('collection')}
             userStats={userStats}
           />
         )}

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useMemo, useRef, useState } from 'react'
 
 import { BACKEND_URL } from '../lib/api'
 
@@ -140,17 +140,34 @@ export function ShopTab({ buyEnergy, loading, premiumSpin, userStats }) {
   )
 }
 
+const RARITY_WEIGHT = { Mythic: 6, Legendary: 5, Epic: 4, Rare: 3, UnCommon: 2, Common: 1 }
+
 export function CollectionTab({ collection, fetchingCollection, getRarityColor, lastError, onRefresh, user, userStats }) {
   const [debugMode, setDebugMode] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [rarityFilter, setRarityFilter] = useState('ALL')
   const debugClickCountRef = useRef(0)
+  const deferredSearchQuery = useDeferredValue(searchQuery.trim().toLowerCase())
 
-  const sortedCollection = useMemo(() => {
-    const weight = { Mythic: 6, Legendary: 5, Epic: 4, Rare: 3, UnCommon: 2, Common: 1 }
-    return [...collection].sort((a, b) => {
-      if (weight[b.rarity] !== weight[a.rarity]) return weight[b.rarity] - weight[a.rarity]
+  const availableRarities = useMemo(() => (
+    ['ALL', ...Object.keys(RARITY_WEIGHT)
+      .filter(rarity => collection.some(card => card.rarity === rarity))]
+  ), [collection])
+
+  const filteredCollection = useMemo(() => {
+    const list = collection.filter(card => {
+      const matchesRarity = rarityFilter === 'ALL' || card.rarity === rarityFilter
+      const matchesSearch = !deferredSearchQuery || card.name.toLowerCase().includes(deferredSearchQuery)
+      return matchesRarity && matchesSearch
+    })
+
+    return list.sort((a, b) => {
+      if (RARITY_WEIGHT[b.rarity] !== RARITY_WEIGHT[a.rarity]) return RARITY_WEIGHT[b.rarity] - RARITY_WEIGHT[a.rarity]
       return a.name.localeCompare(b.name)
     })
-  }, [collection])
+  }, [collection, deferredSearchQuery, rarityFilter])
+
+  const isFiltered = rarityFilter !== 'ALL' || deferredSearchQuery.length > 0
 
   return (
     <div className="w-full max-w-md animate-fade-in flex-1">
@@ -181,11 +198,46 @@ export function CollectionTab({ collection, fetchingCollection, getRarityColor, 
         </div>
         <div className="flex flex-col items-end gap-1">
           <span className="bg-blue-500/10 text-blue-400 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-500/20">
-            {collection.length} / {userStats.total_cards} КАРТ
+            {isFiltered ? `${filteredCollection.length} з ${collection.length}` : `${collection.length} / ${userStats.total_cards}`} КАРТ
           </span>
           <span className="text-[10px] font-bold text-slate-500 mr-2">
             ПРОГРЕС: {((collection.length / Math.max(1, userStats.total_cards)) * 100).toFixed(1)}%
           </span>
+        </div>
+      </div>
+
+      <div className="mb-4 rounded-[1.6rem] border border-slate-700/50 bg-slate-900/40 p-3 shadow-inner">
+        <div className="flex items-center gap-2">
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Пошук картки..."
+            className="flex-1 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-[10px] font-black uppercase text-slate-300 active:scale-95"
+            >
+              Стерти
+            </button>
+          )}
+        </div>
+
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {availableRarities.map(rarity => (
+            <button
+              key={rarity}
+              onClick={() => setRarityFilter(rarity)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-all active:scale-95 ${
+                rarityFilter === rarity
+                  ? 'border-blue-500 bg-blue-500/20 text-blue-300'
+                  : 'border-slate-700 bg-slate-800/70 text-slate-400'
+              }`}
+            >
+              {rarity === 'ALL' ? 'Усі' : rarity}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -202,7 +254,7 @@ export function CollectionTab({ collection, fetchingCollection, getRarityColor, 
       )}
 
       <div className="grid grid-cols-2 gap-3 pb-20">
-        {sortedCollection.map(card => (
+        {filteredCollection.map(card => (
           <div key={card.card_id} className="bg-slate-800/60 backdrop-blur-sm p-2 rounded-2xl border border-slate-700/50 overflow-hidden relative group">
             <div className="aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-slate-900">
               <img src={card.image} alt={card.name} loading="lazy" className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" />
@@ -227,31 +279,66 @@ export function CollectionTab({ collection, fetchingCollection, getRarityColor, 
             <div className="text-sm italic font-medium">Твоя колекція поки порожня...</div>
           </div>
         )}
+        {collection.length > 0 && filteredCollection.length === 0 && (
+          <div className="col-span-2 py-16 text-center flex flex-col items-center gap-3 opacity-70">
+            <div className="text-4xl">🔎</div>
+            <div className="text-sm font-bold">Нічого не знайдено</div>
+            <div className="text-[11px] text-slate-400">Спробуй інший запит або скинь фільтр рідкості.</div>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-export function LeaderboardTab({ leaderboard, lbMode, onModeChange, user }) {
+export function LeaderboardTab({ leaderboard, lbMode, loadingLeaderboard, onModeChange, onRefresh, user }) {
   return (
     <div className="w-full max-w-md animate-fade-in flex-1">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-black tracking-tight uppercase">🏆 Лідерборд</h2>
-        <div className="flex bg-slate-800/40 rounded-xl p-0.5 border border-slate-700/50">
-          {[['spins', '🎲'], ['cards', '🎴']].map(([mode, icon]) => (
-            <button
-              key={mode}
-              onClick={() => onModeChange(mode)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${lbMode === mode ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}
-            >
-              {icon}
-            </button>
-          ))}
+        <div>
+          <h2 className="text-xl font-black tracking-tight uppercase">🏆 Лідерборд</h2>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            {loadingLeaderboard ? 'Оновлюємо рейтинг...' : 'Топ гравців сезону'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-slate-800/40 rounded-xl p-0.5 border border-slate-700/50">
+            {[['spins', '🎲'], ['cards', '🎴']].map(([mode, icon]) => (
+              <button
+                key={mode}
+                onClick={() => onModeChange(mode)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${lbMode === mode ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => { void onRefresh(lbMode) }}
+            disabled={loadingLeaderboard}
+            className={`rounded-xl border px-3 py-2 text-[10px] font-black uppercase transition-all active:scale-95 ${
+              loadingLeaderboard
+                ? 'border-slate-700 bg-slate-800 text-slate-500'
+                : 'border-slate-700 bg-slate-900/60 text-slate-300'
+            }`}
+          >
+            Оновити
+          </button>
         </div>
       </div>
 
       <div className="flex flex-col gap-2 pb-20">
-        {leaderboard.length > 0 ? leaderboard.map((player, idx) => (
+        {loadingLeaderboard && leaderboard.length === 0 ? Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="flex items-center gap-4 p-4 rounded-[1.8rem] border bg-slate-900/30 border-slate-800/80 animate-pulse">
+            <div className="w-8 h-8 rounded-full bg-slate-800" />
+            <div className="flex-1">
+              <div className="h-3.5 w-28 rounded bg-slate-800 mb-2" />
+              <div className="h-2.5 w-20 rounded bg-slate-800/80" />
+            </div>
+          </div>
+        )) : null}
+
+        {!loadingLeaderboard && leaderboard.length > 0 ? leaderboard.map((player, idx) => (
           <div
             key={player.user_id}
             className={`flex items-center gap-4 p-4 rounded-[1.8rem] border transition-all ${
@@ -276,9 +363,13 @@ export function LeaderboardTab({ leaderboard, lbMode, onModeChange, user }) {
             </div>
             <div className="text-xl">{idx === 0 ? '👑' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : ''}</div>
           </div>
-        )) : (
-          <div className="text-center py-20 opacity-30 italic">Завантаження...</div>
-        )}
+        )) : null}
+
+        {!loadingLeaderboard && leaderboard.length === 0 ? (
+          <div className="rounded-[2rem] border border-dashed border-slate-700/60 bg-slate-900/20 py-16 text-center text-slate-400">
+            Рейтинг ще порожній. Спробуй оновити трохи пізніше.
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -301,12 +392,13 @@ export function EventsTab({
           <p className="text-[10px] text-slate-500 mb-5 font-bold tracking-wider">Грай, перемагай та забирай нагороди</p>
 
           <div className="flex flex-col gap-4">
-            <div
+            <button
+              type="button"
               onClick={() => {
                 onStartGame()
                 triggerHaptic('medium')
               }}
-              className="group relative bg-gradient-to-br from-cyan-600/30 to-blue-600/10 border border-cyan-500/40 rounded-[2rem] p-5 overflow-hidden active:scale-95 transition-all cursor-pointer shadow-xl"
+              className="group relative bg-gradient-to-br from-cyan-600/30 to-blue-600/10 border border-cyan-500/40 rounded-[2rem] p-5 overflow-hidden active:scale-95 transition-all cursor-pointer shadow-xl text-left"
             >
               <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-125 transition-transform">🛸</div>
               <div className="flex flex-col relative z-10">
@@ -314,14 +406,15 @@ export function EventsTab({
                 <span className="text-lg font-black text-white uppercase tracking-tighter text-[16px]">Drone Dash</span>
                 <p className="text-[10px] text-cyan-400/70 mt-1 font-bold">1 монета / 5 очок</p>
               </div>
-            </div>
+            </button>
 
-            <div
+            <button
+              type="button"
               onClick={() => {
                 onEventsViewChange('season_tasks')
                 triggerHaptic('selection')
               }}
-              className="group relative bg-gradient-to-br from-blue-600/30 to-purple-600/10 border border-blue-500/40 rounded-[2rem] p-5 overflow-hidden active:scale-95 transition-all cursor-pointer shadow-xl"
+              className="group relative bg-gradient-to-br from-blue-600/30 to-purple-600/10 border border-blue-500/40 rounded-[2rem] p-5 overflow-hidden active:scale-95 transition-all cursor-pointer shadow-xl text-left"
             >
               <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-125 transition-transform">🎯</div>
               <div className="flex flex-col relative z-10">
@@ -337,7 +430,7 @@ export function EventsTab({
                   <span className="text-[10px] font-black text-blue-400">{season?.active ? `${season.tasks.filter(task => task.completed).length}/${season.tasks.length}` : '0/0'}</span>
                 </div>
               </div>
-            </div>
+            </button>
 
             <div className="bg-slate-800/20 border border-dashed border-slate-700/50 rounded-[2rem] p-6 flex items-center justify-center opacity-40">
               <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Більше івентів у розробці...</span>
@@ -395,7 +488,7 @@ export function EventsTab({
   )
 }
 
-export function ReferralTab({ referralData, showToast }) {
+export function ReferralTab({ loadingReferral, referralData, showToast }) {
   const copyReferralLink = async () => {
     try {
       await navigator.clipboard.writeText(referralData?.link || '')
@@ -412,18 +505,18 @@ export function ReferralTab({ referralData, showToast }) {
       <div className="bg-slate-800/40 border border-slate-700 p-6 rounded-[2rem] mb-6 text-center">
         <div className="text-xs text-slate-400 mb-4">Твоє унікальне посилання:</div>
         <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-700 font-mono text-[10px] text-cyan-400 break-all mb-4">
-          {referralData ? referralData.link : 'Завантаження...'}
+          {loadingReferral ? 'Завантаження...' : (referralData ? referralData.link : 'Посилання тимчасово недоступне')}
         </div>
         <button
           onClick={() => { void copyReferralLink() }}
-          disabled={!referralData?.link}
+          disabled={loadingReferral || !referralData?.link}
           className={`w-full py-3 rounded-xl font-black text-xs uppercase transition-all ${
-            referralData?.link
+            !loadingReferral && referralData?.link
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95'
               : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
           }`}
         >
-          Копіювати посилання
+          {loadingReferral ? 'Завантаження...' : 'Копіювати посилання'}
         </button>
       </div>
 

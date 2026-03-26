@@ -1,10 +1,10 @@
 const TABS = [
-  ['home', '🎲'],
-  ['collection', '🎴'],
-  ['shop', '🛒'],
-  ['leaderboard', '🏆'],
-  ['events', '🎯'],
-  ['referral', '🔗']
+  { id: 'home', icon: '🎲', label: 'Головна' },
+  { id: 'collection', icon: '🎴', label: 'Колекція' },
+  { id: 'shop', icon: '🛒', label: 'Магазин' },
+  { id: 'leaderboard', icon: '🏆', label: 'Лідерборд' },
+  { id: 'events', icon: '🎯', label: 'Події' },
+  { id: 'referral', icon: '🔗', label: 'Реферали' }
 ]
 
 export function ToastBanner({ toast }) {
@@ -26,15 +26,17 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
         UAIFU
       </h1>
       <div className="flex gap-1.5">
-        {TABS.map(([tab, icon]) => (
+        {TABS.map(({ id, icon, label }) => (
           <button
-            key={tab}
+            key={id}
             onClick={() => {
-              onTabChange(tab)
+              onTabChange(id)
               triggerHaptic('selection')
             }}
+            title={label}
+            aria-label={label}
             className={`px-2.5 py-1.5 rounded-xl text-sm font-black border transition-all active:scale-95 shadow-lg ${
-              activeTab === tab
+              activeTab === id
                 ? 'bg-blue-500/30 border-blue-500/60 text-blue-300'
                 : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700'
             }`}
@@ -47,12 +49,19 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
   )
 }
 
-export function TopStatsBar({ collection, fetchingCollection, onOpenCollection, userStats }) {
+export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpenCollection, userStats }) {
+  const isEnergyFull = userStats.energy >= userStats.max_energy
+
   return (
     <div className="w-full max-w-md flex flex-col gap-2 mb-3">
       <div className="flex gap-2">
-        <div className="flex-1 bg-slate-800/40 border border-slate-700/50 p-1.5 px-3 rounded-xl flex items-center justify-between">
-          <span className="text-[9px] font-bold text-slate-400">ЕНЕРГІЯ</span>
+        <div className="flex-1 bg-slate-800/40 border border-slate-700/50 p-2 px-3 rounded-xl flex items-center justify-between gap-3">
+          <div className="flex flex-col">
+            <span className="text-[9px] font-bold text-slate-400">ЕНЕРГІЯ</span>
+            <span className="text-[9px] font-bold text-slate-500">
+              {isEnergyFull ? 'Заповнено' : `+1 через ${formatTime(userStats.next_energy_in_seconds)}`}
+            </span>
+          </div>
           <span className={`text-xs font-black ${userStats.energy === 0 ? 'text-red-400' : 'text-cyan-400'}`}>
             {userStats.energy}/{userStats.max_energy}
           </span>
@@ -69,8 +78,9 @@ export function TopStatsBar({ collection, fetchingCollection, onOpenCollection, 
         className="w-full bg-slate-800/20 border border-slate-700/30 p-1.5 px-3 rounded-lg flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer"
       >
         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Твоя Колекція</span>
-        <span className="text-[9px] font-black text-blue-400">
+        <span className="text-[9px] font-black text-blue-400 flex items-center gap-2">
           {fetchingCollection ? 'Оновлення...' : `${collection.length} / ${userStats.total_cards}`}
+          {!fetchingCollection && <span className="text-slate-500">→</span>}
         </span>
       </div>
     </div>
