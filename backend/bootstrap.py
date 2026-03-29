@@ -17,6 +17,9 @@ def migrate_database():
         new_cols = [
             ("total_spins", "INTEGER DEFAULT 0"),
             ("referred_by", "INTEGER"),
+            ("pity_counter", "INTEGER DEFAULT 0"),
+            ("last_login_date", "DATETIME"),
+            ("login_streak", "INTEGER DEFAULT 0"),
         ]
 
         for col_name, col_type in new_cols:
