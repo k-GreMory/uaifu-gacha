@@ -110,7 +110,7 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
   )
 }
 
-export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpenCollection, userStats }) {
+export function TopStatsBar({ formatTime, userStats }) {
   const isEnergyFull = userStats.energy >= userStats.max_energy
   const energyPercent = Math.round((userStats.energy / Math.max(1, userStats.max_energy)) * 100)
 

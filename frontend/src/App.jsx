@@ -1,6 +1,5 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 
-import './App.css'
 import { AppHeader, ToastBanner, TopStatsBar } from './components/AppChrome'
 import DroneGame from './components/DroneGame'
 import {
@@ -588,7 +587,6 @@ function App() {
         lbMode={lbMode}
         loadingLeaderboard={loadingLeaderboard}
         onModeChange={setLbMode}
-        onRefresh={fetchLeaderboard}
         user={user}
       />
     )
@@ -640,10 +638,7 @@ function App() {
 
         {activeTab === 'home' && (
           <TopStatsBar
-            collection={collection}
-            fetchingCollection={fetchingCollection}
             formatTime={formatTime}
-            onOpenCollection={() => changeTab('collection')}
             userStats={userStats}
           />
         )}

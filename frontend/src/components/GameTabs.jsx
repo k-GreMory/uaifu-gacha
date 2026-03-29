@@ -313,7 +313,7 @@ export function CollectionTab({ collection, fetchingCollection, getRarityColor, 
   )
 }
 
-export function LeaderboardTab({ leaderboard, lbMode, loadingLeaderboard, onModeChange, onRefresh, user }) {
+export function LeaderboardTab({ leaderboard, lbMode, loadingLeaderboard, onModeChange, user }) {
   return (
     <div className="w-full max-w-md animate-fade-in flex-1">
       <div className="flex justify-between items-center mb-6">
