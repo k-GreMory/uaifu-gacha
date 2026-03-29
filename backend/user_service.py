@@ -12,6 +12,10 @@ from database import get_db
 TOTAL_CARD_COUNT = len(CARDS)
 
 
+def utcnow_naive():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def normalize_profile_value(value: Optional[str]) -> Optional[str]:
     if value is None:
         return None
@@ -19,18 +23,39 @@ def normalize_profile_value(value: Optional[str]) -> Optional[str]:
     return value or None
 
 
-def update_energy(db: Session, user: models.User):
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if user.energy < user.max_energy:
-        diff_minutes = (now - user.last_energy_update).total_seconds() / 60.0
-        gained = int(diff_minutes // 10)
+def restart_energy_regeneration(user: models.User, now: Optional[datetime] = None):
+    user.last_energy_update = now or utcnow_naive()
+    return user
 
-        if gained > 0:
-            user.energy = min(user.max_energy, user.energy + gained)
-            user.last_energy_update = user.last_energy_update + timedelta(minutes=gained * 10)
+
+def sync_full_energy_timestamp(user: models.User, now: Optional[datetime] = None):
+    if user.energy >= user.max_energy:
+        user.last_energy_update = now or utcnow_naive()
+    return user
+
+
+def update_energy(db: Session, user: models.User):
+    now = utcnow_naive()
+    if user.energy >= user.max_energy:
+        if user.last_energy_update is None:
+            restart_energy_regeneration(user, now)
             db.commit()
-    else:
-        user.last_energy_update = now
+        return user
+
+    if user.last_energy_update is None:
+        restart_energy_regeneration(user, now)
+        db.commit()
+        return user
+
+    diff_minutes = (now - user.last_energy_update).total_seconds() / 60.0
+    gained = int(diff_minutes // 10)
+
+    if gained > 0:
+        user.energy = min(user.max_energy, user.energy + gained)
+        if user.energy >= user.max_energy:
+            sync_full_energy_timestamp(user, now)
+        else:
+            user.last_energy_update = user.last_energy_update + timedelta(minutes=gained * 10)
         db.commit()
     return user
 
@@ -38,11 +63,11 @@ def update_energy(db: Session, user: models.User):
 def get_user_state(db: Session, user: models.User):
     next_energy = 0
     if user.energy < user.max_energy:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = utcnow_naive()
         elapsed = (now - user.last_energy_update).total_seconds()
         next_energy = max(0, int((10 * 60) - elapsed))
 
-    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    now_naive = utcnow_naive()
     can_claim = False
     if not user.last_login_date or user.last_login_date.date() < now_naive.date():
         can_claim = True

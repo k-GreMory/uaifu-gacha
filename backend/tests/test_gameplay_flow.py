@@ -24,6 +24,7 @@ import models
 from database import SessionLocal
 from routers.gameplay import SellDuplicateRequest
 from services.gameplay_service import SELL_DUPLICATE_REWARDS
+from user_service import utcnow_naive
 
 
 class GameplayFlowTests(unittest.TestCase):
@@ -110,6 +111,26 @@ class GameplayFlowTests(unittest.TestCase):
         self.assertEqual(pity_counter, 0)
         self.assertTrue(has_owned_card)
         self.assertEqual(spin_log_count, 1)
+
+    def test_spin_from_full_energy_restarts_regen_from_now(self):
+        user_id = 70009
+        old_timestamp = utcnow_naive() - timedelta(hours=2)
+        self.create_user(user_id, energy=20, max_energy=20, last_energy_update=old_timestamp)
+        card = self.get_card("Rare")
+
+        before_spin = utcnow_naive() - timedelta(seconds=2)
+        with SessionLocal() as db:
+            user = db.query(models.User).filter(models.User.id == user_id).first()
+            with patch("services.gameplay_service.resolve_standard_rarity", return_value="Rare"), patch(
+                "services.gameplay_service.draw_card_for_rarity",
+                return_value=card,
+            ):
+                payload = self.run_async(main.spin(current_user=user, db=db))
+            last_energy_update = user.last_energy_update
+
+        self.assertGreaterEqual(payload["user_stats"]["next_energy_in_seconds"], 590)
+        self.assertLessEqual(payload["user_stats"]["next_energy_in_seconds"], 600)
+        self.assertGreaterEqual(last_energy_update, before_spin)
 
     def test_premium_spin_spends_coins_and_creates_purchase_log(self):
         user_id = 70002

@@ -2,20 +2,23 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.sql.expression import func
 
 import models
-from user_service import get_user_state
+from user_service import get_user_state, sync_full_energy_timestamp
 
 
-def get_active_season(db: Session) -> Optional[models.Season]:
+def get_active_season(db: Session, with_tasks: bool = False) -> Optional[models.Season]:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    return db.query(models.Season).filter(
+    query = db.query(models.Season).filter(
         models.Season.is_active == True,
         models.Season.start_date <= now,
         models.Season.end_date >= now,
-    ).first()
+    ).order_by(models.Season.start_date.desc())
+    if with_tasks:
+        query = query.options(selectinload(models.Season.tasks))
+    return query.first()
 
 
 def ensure_season_exists(db: Session):
@@ -78,17 +81,24 @@ def resolve_task_progress(task: models.SeasonTask, metrics: dict[str, int]) -> i
 
 def get_season_payload(db: Session, user: models.User):
     ensure_season_exists(db)
-    season = get_active_season(db)
+    season = get_active_season(db, with_tasks=True)
     if not season:
         return {"active": False, "message": "Зараз немає активного сезону"}
 
     metrics = get_user_season_metrics(db, user)
+    progress_rows = {}
+    task_ids = [task.id for task in season.tasks]
+    if task_ids:
+        progress_rows = {
+            progress.task_id: progress
+            for progress in db.query(models.UserSeasonProgress).filter(
+                models.UserSeasonProgress.user_id == user.id,
+                models.UserSeasonProgress.task_id.in_(task_ids),
+            ).all()
+        }
     tasks_out = []
     for task in season.tasks:
-        progress_row = db.query(models.UserSeasonProgress).filter(
-            models.UserSeasonProgress.user_id == user.id,
-            models.UserSeasonProgress.task_id == task.id,
-        ).first()
+        progress_row = progress_rows.get(task.id)
         current = resolve_task_progress(task, metrics)
         tasks_out.append({
             "id": task.id,
@@ -112,7 +122,12 @@ def get_season_payload(db: Session, user: models.User):
 
 
 def claim_season_reward_for_user(db: Session, user: models.User, task_id: int):
-    task = db.query(models.SeasonTask).filter(models.SeasonTask.id == task_id).first()
+    task = (
+        db.query(models.SeasonTask)
+        .options(joinedload(models.SeasonTask.season))
+        .filter(models.SeasonTask.id == task_id)
+        .first()
+    )
     if not task:
         raise HTTPException(status_code=404, detail="Задача не знайдена")
 
@@ -149,6 +164,7 @@ def claim_season_reward_for_user(db: Session, user: models.User, task_id: int):
     user.coins += task.reward_coins
     if task.reward_energy > 0:
         user.energy = min(user.max_energy, user.energy + task.reward_energy)
+    sync_full_energy_timestamp(user)
 
     db.commit()
     return {

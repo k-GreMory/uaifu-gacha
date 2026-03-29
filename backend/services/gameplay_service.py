@@ -3,12 +3,12 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy import distinct
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql.expression import func
 
 import models
 from cards_data import RARITY_CHANCES
-from user_service import get_user_state
+from user_service import get_user_state, restart_energy_regeneration, sync_full_energy_timestamp
 
 STANDARD_DUPLICATE_REWARDS = {"Common": 10, "UnCommon": 20, "Rare": 50, "Epic": 150, "Legendary": 500, "Mythic": 2000}
 SELL_DUPLICATE_REWARDS = {"Common": 20, "UnCommon": 40, "Rare": 100, "Epic": 300, "Legendary": 1000, "Mythic": 4000}
@@ -106,7 +106,10 @@ def perform_spin(db: Session, user: models.User):
     if user.energy < 1:
         raise HTTPException(status_code=400, detail="Недостатньо енергії! Зачекай або купи за монети.")
 
+    had_full_energy = user.energy >= user.max_energy
     user.energy -= 1
+    if had_full_energy and user.energy < user.max_energy:
+        restart_energy_regeneration(user)
     user.total_spins = (user.total_spins or 0) + 1
     user.pity_counter = (user.pity_counter or 0) + 1
 
@@ -143,6 +146,7 @@ def buy_energy_for_user(db: Session, user: models.User):
 
     user.coins -= 1000
     user.energy = min(user.max_energy, user.energy + 1)
+    sync_full_energy_timestamp(user)
     db.add(models.PurchaseLog(user_id=user.id, item="energy", cost=1000))
     db.commit()
     return {
@@ -153,7 +157,12 @@ def buy_energy_for_user(db: Session, user: models.User):
 
 
 def get_collection_payload(db: Session, user: models.User):
-    user_cards = db.query(models.UserCard).filter(models.UserCard.user_id == user.id).all()
+    user_cards = (
+        db.query(models.UserCard)
+        .options(joinedload(models.UserCard.card))
+        .filter(models.UserCard.user_id == user.id)
+        .all()
+    )
     result = []
     for user_card in user_cards:
         card = user_card.card
@@ -221,6 +230,7 @@ def claim_daily_reward_for_user(db: Session, user: models.User):
     reward_coins = min(200 + (user.login_streak * 50), 1000)
     if user.energy < user.max_energy:
         user.energy = min(user.max_energy, user.energy + 5)
+    sync_full_energy_timestamp(user, now)
 
     user.coins += reward_coins
     user.last_login_date = now
@@ -233,10 +243,15 @@ def claim_daily_reward_for_user(db: Session, user: models.User):
 
 
 def sell_duplicate_for_user(db: Session, user: models.User, card_id: str):
-    user_card = db.query(models.UserCard).filter(
-        models.UserCard.user_id == user.id,
-        models.UserCard.card_id == card_id,
-    ).first()
+    user_card = (
+        db.query(models.UserCard)
+        .options(joinedload(models.UserCard.card))
+        .filter(
+            models.UserCard.user_id == user.id,
+            models.UserCard.card_id == card_id,
+        )
+        .first()
+    )
     if not user_card or user_card.duplicates < 1:
         raise HTTPException(status_code=400, detail="Немає дублікатів для продажу!")
 

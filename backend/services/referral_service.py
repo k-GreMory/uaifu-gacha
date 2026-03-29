@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import models
-from user_service import get_user_state
+from user_service import get_user_state, sync_full_energy_timestamp
 
 
 def is_referral_eligible_user(db: Session, user: models.User) -> bool:
@@ -50,6 +50,8 @@ def claim_referral_reward(db: Session, current_user: models.User, ref_id: int):
     current_user.energy = min(current_user.max_energy, current_user.energy + 3)
     current_user.coins += 200
     current_user.referred_by = ref_id
+    sync_full_energy_timestamp(referrer)
+    sync_full_energy_timestamp(current_user)
     db.commit()
 
     return {
