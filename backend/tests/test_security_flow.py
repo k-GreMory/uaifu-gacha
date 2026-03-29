@@ -82,6 +82,10 @@ def utcnow_naive():
 
 
 class SecurityFlowTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        main.ensure_bootstrap()
+
     def setUp(self):
         with SessionLocal() as db:
             db.query(models.DroneGameSession).delete()

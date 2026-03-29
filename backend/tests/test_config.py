@@ -23,6 +23,11 @@ class ConfigTests(unittest.TestCase):
         with patch.dict(os.environ, {"ENABLE_ADMIN": "", "ADMIN_SECRET": ""}, clear=False):
             self.assertFalse(config.is_admin_enabled(None))
 
+    def test_app_version_uses_commit_env_when_available(self):
+        with patch.dict(os.environ, {"APP_VERSION": "", "RAILWAY_GIT_COMMIT_SHA": "abcdef1234567890"}, clear=False):
+            self.assertEqual(config.get_app_version(), "abcdef1234567890")
+            self.assertEqual(config.get_app_version_short(), "abcdef1")
+
 
 if __name__ == "__main__":
     unittest.main()

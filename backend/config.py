@@ -16,6 +16,14 @@ NON_LOCAL_MARKERS = (
     "RENDER",
     "FLY_APP_NAME",
 )
+APP_VERSION_KEYS = (
+    "APP_VERSION",
+    "RAILWAY_GIT_COMMIT_SHA",
+    "RAILWAY_GIT_COMMIT_HASH",
+    "VERCEL_GIT_COMMIT_SHA",
+    "GIT_COMMIT_SHA",
+    "COMMIT_SHA",
+)
 
 
 def parse_bool(value: Optional[str], default: bool) -> bool:
@@ -99,6 +107,21 @@ def get_cors_allowed_origins() -> list[str]:
 def get_cors_allowed_origin_regex() -> Optional[str]:
     regex = os.getenv("CORS_ALLOW_ORIGIN_REGEX", "").strip()
     return regex or None
+
+
+def get_app_version() -> str:
+    for key in APP_VERSION_KEYS:
+        value = os.getenv(key, "").strip()
+        if value:
+            return value
+    return "unknown"
+
+
+def get_app_version_short() -> str:
+    version = get_app_version()
+    if version == "unknown":
+        return version
+    return version[:7]
 
 
 def validate_runtime_configuration() -> dict[str, object]:
