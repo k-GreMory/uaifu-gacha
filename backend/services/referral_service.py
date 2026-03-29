@@ -5,11 +5,8 @@ from sqlalchemy.orm import Session
 
 import models
 from game_balance import (
-    REFERRAL_NEW_USER_COINS,
-    REFERRAL_NEW_USER_ENERGY,
-    REFERRAL_REFERRER_COINS,
-    REFERRAL_REFERRER_ENERGY,
     get_referral_reward_description,
+    get_balance_config,
 )
 from user_service import get_user_state, sync_full_energy_timestamp
 
@@ -32,7 +29,7 @@ def get_referral_link_payload(db: Session, user: models.User):
     return {
         "link": link,
         "ref_count": ref_count,
-        "reward_per_ref": get_referral_reward_description(),
+        "reward_per_ref": get_referral_reward_description(db),
     }
 
 
@@ -51,11 +48,15 @@ def claim_referral_reward(db: Session, current_user: models.User, ref_id: int):
     if not referrer:
         raise HTTPException(status_code=404, detail="Запрошувач не знайдений")
 
+    balance = get_balance_config(db)
+    referrer_reward = balance["referral_rewards"]["referrer"]
+    new_user_reward = balance["referral_rewards"]["new_user"]
+
     db.add(models.Referral(referrer_id=ref_id, invited_id=current_user.id, rewarded=True))
-    referrer.energy = min(referrer.max_energy, referrer.energy + REFERRAL_REFERRER_ENERGY)
-    referrer.coins += REFERRAL_REFERRER_COINS
-    current_user.energy = min(current_user.max_energy, current_user.energy + REFERRAL_NEW_USER_ENERGY)
-    current_user.coins += REFERRAL_NEW_USER_COINS
+    referrer.energy = min(referrer.max_energy, referrer.energy + int(referrer_reward["energy"]))
+    referrer.coins += int(referrer_reward["coins"])
+    current_user.energy = min(current_user.max_energy, current_user.energy + int(new_user_reward["energy"]))
+    current_user.coins += int(new_user_reward["coins"])
     current_user.referred_by = ref_id
     sync_full_energy_timestamp(referrer)
     sync_full_energy_timestamp(current_user)
@@ -64,7 +65,7 @@ def claim_referral_reward(db: Session, current_user: models.User, ref_id: int):
     return {
         "success": True,
         "message": "Реферал зараховано! Обом нараховано бонуси 🎉",
-        "referrer_bonus": f"+{REFERRAL_REFERRER_ENERGY} енергії, +{REFERRAL_REFERRER_COINS} монет",
-        "new_user_bonus": f"+{REFERRAL_NEW_USER_ENERGY} енергії, +{REFERRAL_NEW_USER_COINS} монет",
+        "referrer_bonus": f"+{int(referrer_reward['energy'])} енергії, +{int(referrer_reward['coins'])} монет",
+        "new_user_bonus": f"+{int(new_user_reward['energy'])} енергії, +{int(new_user_reward['coins'])} монет",
         "user_stats": get_user_state(db, current_user),
     }

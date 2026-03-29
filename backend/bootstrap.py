@@ -1,6 +1,8 @@
 from cards_data import CARDS
+from game_balance import get_balance_record_kwargs, load_balance_config
 import models
 from database import SessionLocal, engine
+from season_catalog import get_season_template_seed, load_default_season_template
 
 
 def migrate_database():
@@ -132,9 +134,40 @@ def cleanup_orphan_user_cards():
         db.close()
 
 
+def seed_managed_content():
+    db = SessionLocal()
+    try:
+        if db.query(models.GameBalanceConfig).count() == 0:
+            balance_seed = load_balance_config()
+            db.add(models.GameBalanceConfig(**get_balance_record_kwargs(balance_seed)))
+
+        if db.query(models.SeasonTemplate).count() == 0:
+            template_seed = get_season_template_seed(load_default_season_template())
+            template = models.SeasonTemplate(
+                code=template_seed["code"],
+                name=template_seed["name"],
+                duration_days=template_seed["duration_days"],
+                is_active=template_seed["is_active"],
+            )
+            db.add(template)
+            db.flush()
+            db.add_all([
+                models.SeasonTemplateTask(template_id=template.id, **task_seed)
+                for task_seed in template_seed["tasks"]
+            ])
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 def bootstrap_system():
     models.Base.metadata.create_all(bind=engine)
     migrate_database()
     sync_database()
     reconcile_card_duplicates()
     cleanup_orphan_user_cards()
+    seed_managed_content()

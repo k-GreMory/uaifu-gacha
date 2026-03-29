@@ -77,6 +77,40 @@ class ReferralAdmin(ModelView, model=models.Referral):
     column_list = ["id", "referrer_id", "invited_id", "rewarded", "created_at"]
 
 
+class GameBalanceConfigAdmin(ModelView, model=models.GameBalanceConfig):
+    name = "Баланс"
+    name_plural = "Баланс"
+    icon = "fa-solid fa-sliders"
+    column_list = [
+        "id",
+        "name",
+        "is_active",
+        "premium_spin_cost",
+        "energy_purchase_cost",
+        "pity_threshold",
+        "updated_at",
+    ]
+    search_fields = ["name"]
+    form_excluded_columns = ["created_at", "updated_at"]
+
+
+class SeasonTemplateAdmin(ModelView, model=models.SeasonTemplate):
+    name = "Шаблон Сезону"
+    name_plural = "Шаблони Сезонів"
+    icon = "fa-solid fa-calendar-days"
+    column_list = ["id", "code", "name", "duration_days", "is_active", "updated_at"]
+    search_fields = ["code", "name"]
+    form_excluded_columns = ["created_at", "updated_at"]
+    inline_models = [models.SeasonTemplateTask]
+
+
+class SeasonTemplateTaskAdmin(ModelView, model=models.SeasonTemplateTask):
+    name = "Завдання Шаблону"
+    name_plural = "Завдання Шаблонів"
+    icon = "fa-solid fa-list-check"
+    column_list = ["id", "template_id", "sort_order", "title", "task_type", "target", "reward_coins", "reward_energy"]
+
+
 class SeasonAdmin(ModelView, model=models.Season):
     name = "Сезон"
     name_plural = "Сезони"
@@ -111,6 +145,9 @@ def setup_admin(app, engine, templates_dir: str, admin_secret: str, admin_enable
     admin.add_view(SpinLogAdmin)
     admin.add_view(PurchaseLogAdmin)
     admin.add_view(ReferralAdmin)
+    admin.add_view(GameBalanceConfigAdmin)
+    admin.add_view(SeasonTemplateAdmin)
+    admin.add_view(SeasonTemplateTaskAdmin)
     admin.add_view(SeasonAdmin)
     admin.add_view(SeasonTaskAdmin)
     return admin

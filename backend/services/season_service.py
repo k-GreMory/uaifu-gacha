@@ -41,7 +41,7 @@ def ensure_season_exists(db: Session):
             db.commit()
         return season
 
-    seed = get_default_season_seed(now)
+    seed = get_default_season_seed(now, db=db)
     season = models.Season(
         name=seed["name"],
         start_date=seed["start_date"],

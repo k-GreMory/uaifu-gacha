@@ -113,6 +113,101 @@ class Referral(Base):
     def __str__(self):
         return f"Referral: {self.referrer_id} -> {self.invited_id}"
 
+# --- Managed Content ---
+class GameBalanceConfig(Base):
+    __tablename__ = "game_balance_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, default="Default Balance")
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+
+    daily_reward_base_coins = Column(Integer, default=200, nullable=False)
+    daily_reward_energy_bonus = Column(Integer, default=5, nullable=False)
+    daily_reward_max_coins = Column(Integer, default=1000, nullable=False)
+    daily_reward_streak_step_coins = Column(Integer, default=50, nullable=False)
+
+    drone_score_per_coin = Column(Integer, default=5, nullable=False)
+
+    energy_purchase_amount = Column(Integer, default=1, nullable=False)
+    energy_purchase_cost = Column(Integer, default=1000, nullable=False)
+    premium_spin_cost = Column(Integer, default=10000, nullable=False)
+
+    pity_threshold = Column(Integer, default=50, nullable=False)
+    premium_rare_chance = Column(Integer, default=600, nullable=False)
+    premium_epic_chance = Column(Integer, default=300, nullable=False)
+    premium_legendary_chance = Column(Integer, default=90, nullable=False)
+    premium_mythic_chance = Column(Integer, default=10, nullable=False)
+    pity_legendary_chance = Column(Integer, default=90, nullable=False)
+    pity_mythic_chance = Column(Integer, default=10, nullable=False)
+
+    referrer_reward_coins = Column(Integer, default=500, nullable=False)
+    referrer_reward_energy = Column(Integer, default=5, nullable=False)
+    new_user_reward_coins = Column(Integer, default=200, nullable=False)
+    new_user_reward_energy = Column(Integer, default=3, nullable=False)
+
+    standard_duplicate_common = Column(Integer, default=10, nullable=False)
+    standard_duplicate_uncommon = Column(Integer, default=20, nullable=False)
+    standard_duplicate_rare = Column(Integer, default=50, nullable=False)
+    standard_duplicate_epic = Column(Integer, default=150, nullable=False)
+    standard_duplicate_legendary = Column(Integer, default=500, nullable=False)
+    standard_duplicate_mythic = Column(Integer, default=2000, nullable=False)
+
+    sell_duplicate_common = Column(Integer, default=20, nullable=False)
+    sell_duplicate_uncommon = Column(Integer, default=40, nullable=False)
+    sell_duplicate_rare = Column(Integer, default=100, nullable=False)
+    sell_duplicate_epic = Column(Integer, default=300, nullable=False)
+    sell_duplicate_legendary = Column(Integer, default=1000, nullable=False)
+    sell_duplicate_mythic = Column(Integer, default=4000, nullable=False)
+
+    created_at = Column(DateTime, default=utcnow_naive, nullable=False)
+    updated_at = Column(DateTime, default=utcnow_naive, onupdate=utcnow_naive, nullable=False)
+
+    def __str__(self):
+        suffix = " (active)" if self.is_active else ""
+        return f"{self.name}{suffix}"
+
+
+class SeasonTemplate(Base):
+    __tablename__ = "season_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    duration_days = Column(Integer, default=30, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=utcnow_naive, nullable=False)
+    updated_at = Column(DateTime, default=utcnow_naive, onupdate=utcnow_naive, nullable=False)
+
+    tasks = relationship(
+        "SeasonTemplateTask",
+        back_populates="template",
+        cascade="all, delete-orphan",
+        order_by="SeasonTemplateTask.sort_order",
+    )
+
+    def __str__(self):
+        suffix = " (active)" if self.is_active else ""
+        return f"{self.name}{suffix}"
+
+
+class SeasonTemplateTask(Base):
+    __tablename__ = "season_template_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    template_id = Column(Integer, ForeignKey("season_templates.id"), index=True, nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    title = Column(String, nullable=False)
+    task_type = Column(String, nullable=False)
+    target = Column(Integer, nullable=False)
+    reward_coins = Column(Integer, default=0, nullable=False)
+    reward_energy = Column(Integer, default=0, nullable=False)
+
+    template = relationship("SeasonTemplate", back_populates="tasks")
+
+    def __str__(self):
+        return f"{self.sort_order}. {self.title}"
+
+
 # --- Season Pass ---
 class Season(Base):
     __tablename__ = "seasons"

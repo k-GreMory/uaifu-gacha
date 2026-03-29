@@ -8,7 +8,14 @@
 ## Balance And Season Seeds
 - Game economy loads from [backend/content/game_balance.json](/D:/gachaAPP/backend/content/game_balance.json) via [backend/game_balance.py](/D:/gachaAPP/backend/game_balance.py)
 - Default season seed loads from [backend/content/default_season.json](/D:/gachaAPP/backend/content/default_season.json) via [backend/season_catalog.py](/D:/gachaAPP/backend/season_catalog.py)
+- On bootstrap these defaults are seeded into admin-managed DB tables: `GameBalanceConfig`, `SeasonTemplate`, `SeasonTemplateTask`
+- Runtime priority is `active admin record in DB -> JSON seed -> hardcoded fallback`
 - Optional override envs: `GAME_BALANCE_FILE`, `DEFAULT_SEASON_FILE`
+
+## Admin Content Editing
+- Open the backend admin panel and edit `Баланс` to change economy values without redeploying code.
+- Edit `Шаблон Сезону` and its inline `Завдання Шаблону` rows to control future generated seasons.
+- Keep only one `Баланс` row and one `Шаблон Сезону` row marked `is_active=true` unless you intentionally want the latest active row to win.
 
 ## Critical Env
 ### Backend

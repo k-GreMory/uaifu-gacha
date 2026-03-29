@@ -4,10 +4,16 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from sqlalchemy.orm import Session, selectinload
+
+import models
+
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_SEASON_FILE = BASE_DIR / "content" / "default_season.json"
+DEFAULT_SEASON_CODE = "default-season"
 
 DEFAULT_SEASON_TEMPLATE = {
+    "code": DEFAULT_SEASON_CODE,
     "duration_days": 30,
     "is_active": True,
     "name": "Сезон 1: Весна Вайфу 🌸",
@@ -99,22 +105,88 @@ def load_default_season_template(path: str | Path | None = None) -> dict:
         return copy.deepcopy(DEFAULT_SEASON_TEMPLATE)
 
 
-def get_default_season_template() -> dict:
+def get_season_template_seed(template: dict | None = None) -> dict:
+    source = copy.deepcopy(template or DEFAULT_SEASON_TEMPLATE_LOADED)
+    tasks = []
+    for index, task in enumerate(source["tasks"], start=1):
+        tasks.append({
+            "sort_order": int(task.get("sort_order") or index),
+            "title": task["title"],
+            "task_type": task["task_type"],
+            "target": int(task["target"]),
+            "reward_coins": int(task.get("reward_coins", 0)),
+            "reward_energy": int(task.get("reward_energy", 0)),
+        })
+    return {
+        "code": source.get("code") or DEFAULT_SEASON_CODE,
+        "name": source["name"],
+        "duration_days": int(source["duration_days"]),
+        "is_active": bool(source.get("is_active", True)),
+        "tasks": tasks,
+    }
+
+
+def _template_from_record(record: models.SeasonTemplate) -> dict:
+    tasks = [
+        {
+            "sort_order": int(task.sort_order),
+            "title": task.title,
+            "task_type": task.task_type,
+            "target": int(task.target),
+            "reward_coins": int(task.reward_coins),
+            "reward_energy": int(task.reward_energy),
+        }
+        for task in record.tasks
+    ]
+    return {
+        "code": record.code,
+        "name": record.name,
+        "duration_days": int(record.duration_days),
+        "is_active": bool(record.is_active),
+        "tasks": tasks,
+    }
+
+
+def get_active_season_template_record(db: Session | None):
+    if db is None:
+        return None
+    return (
+        db.query(models.SeasonTemplate)
+        .options(selectinload(models.SeasonTemplate.tasks))
+        .filter(models.SeasonTemplate.is_active == True)
+        .order_by(models.SeasonTemplate.updated_at.desc(), models.SeasonTemplate.id.desc())
+        .first()
+    )
+
+
+def get_default_season_template(db: Session | None = None) -> dict:
+    record = get_active_season_template_record(db)
+    if record is not None:
+        return _template_from_record(record)
     return copy.deepcopy(DEFAULT_SEASON_TEMPLATE_LOADED)
+
+
+def get_default_season_seed(now, template: dict | None = None, db: Session | None = None):
+    source = get_season_template_seed(template or get_default_season_template(db))
+    return {
+        "name": source["name"],
+        "start_date": now,
+        "end_date": now + timedelta(days=int(source["duration_days"])),
+        "is_active": bool(source.get("is_active", True)),
+        "tasks": [
+            {
+                "title": task["title"],
+                "task_type": task["task_type"],
+                "target": int(task["target"]),
+                "reward_coins": int(task["reward_coins"]),
+                "reward_energy": int(task["reward_energy"]),
+            }
+            for task in source["tasks"]
+        ],
+    }
 
 
 DEFAULT_SEASON_TEMPLATE_LOADED = load_default_season_template()
 DEFAULT_SEASON_NAME = DEFAULT_SEASON_TEMPLATE_LOADED["name"]
 DEFAULT_SEASON_DURATION_DAYS = int(DEFAULT_SEASON_TEMPLATE_LOADED["duration_days"])
 DEFAULT_SEASON_TASKS = DEFAULT_SEASON_TEMPLATE_LOADED["tasks"]
-
-
-def get_default_season_seed(now, template: dict | None = None):
-    source = copy.deepcopy(template or DEFAULT_SEASON_TEMPLATE_LOADED)
-    return {
-        "name": source["name"],
-        "start_date": now,
-        "end_date": now + timedelta(days=int(source["duration_days"])),
-        "is_active": bool(source.get("is_active", True)),
-        "tasks": [dict(task) for task in source["tasks"]],
-    }

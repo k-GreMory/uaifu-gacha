@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 
 import models
-from game_balance import DRONE_SCORE_PER_COIN
+from game_balance import get_drone_score_per_coin
 from user_service import get_user_state
 
 DRONE_SESSION_TTL_MINUTES = int(os.getenv("DRONE_SESSION_TTL_MINUTES", "15"))
@@ -75,7 +75,7 @@ def claim_drone_reward(db, user: models.User, session_token: str, score: int):
     if normalized_score > max_allowed_score:
         raise HTTPException(status_code=400, detail="Suspicious score rejected")
 
-    coins_to_add = min(normalized_score // DRONE_SCORE_PER_COIN, MAX_DRONE_COINS_PER_RUN)
+    coins_to_add = min(normalized_score // get_drone_score_per_coin(db), MAX_DRONE_COINS_PER_RUN)
     session.best_score = normalized_score
     session.reward_coins = coins_to_add
     session.status = "claimed"
