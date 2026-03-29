@@ -74,28 +74,40 @@ def reconcile_card_duplicates():
 def sync_database():
     db = SessionLocal()
     try:
-        existing_ids = {card.id for card in db.query(models.Card).all()}
+        existing_cards = {card.id: card for card in db.query(models.Card).all()}
         new_count = 0
         updated_count = 0
 
         for card_data in CARDS:
-            if card_data["id"] not in existing_ids:
+            existing_card = existing_cards.get(card_data["id"])
+            description = card_data.get("description", "")
+
+            if existing_card is None:
                 db.add(models.Card(
                     id=card_data["id"],
                     name=card_data["name"],
                     rarity=card_data["rarity"],
                     image=card_data["image"],
-                    description=card_data.get("description", ""),
+                    description=description,
                 ))
                 new_count += 1
             else:
-                db.query(models.Card).filter(models.Card.id == card_data["id"]).update({
-                    "name": card_data["name"],
-                    "rarity": card_data["rarity"],
-                    "image": card_data["image"],
-                    "description": card_data.get("description", ""),
-                })
-                updated_count += 1
+                changed = False
+                if existing_card.name != card_data["name"]:
+                    existing_card.name = card_data["name"]
+                    changed = True
+                if existing_card.rarity != card_data["rarity"]:
+                    existing_card.rarity = card_data["rarity"]
+                    changed = True
+                if existing_card.image != card_data["image"]:
+                    existing_card.image = card_data["image"]
+                    changed = True
+                if (existing_card.description or "") != description:
+                    existing_card.description = description
+                    changed = True
+
+                if changed:
+                    updated_count += 1
 
         db.commit()
         if new_count > 0 or updated_count > 0:

@@ -28,6 +28,12 @@ import {
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1'])
 const TAB_STORAGE_KEY = 'uaifu_active_tab'
 const VALID_TABS = new Set(['home', 'collection', 'shop', 'leaderboard', 'events', 'referral'])
+const CACHE_TTL_MS = {
+  collection: 30000,
+  leaderboard: 15000,
+  season: 20000,
+  referral: 30000
+}
 
 const parseTelegramInitData = (initData = '') => {
   if (!initData) {
@@ -79,8 +85,15 @@ function App() {
   const [gameActive, setGameActive] = useState(false)
   const toastTimeoutRef = useRef(null)
   const collectionFetchInFlightRef = useRef(false)
+  const leaderboardFetchInFlightRef = useRef(false)
+  const seasonFetchInFlightRef = useRef(false)
+  const referralFetchInFlightRef = useRef(false)
   const processedReferralRef = useRef(new Set())
   const dailyClaimInFlightRef = useRef(false)
+  const collectionCacheRef = useRef({ userId: null, fetchedAt: 0, loaded: false })
+  const leaderboardCacheRef = useRef({ mode: null, fetchedAt: 0, loaded: false })
+  const seasonCacheRef = useRef({ userId: null, fetchedAt: 0, loaded: false })
+  const referralCacheRef = useRef({ userId: null, fetchedAt: 0, loaded: false })
 
   const triggerHaptic = (type = 'light') => {
     const haptic = window.Telegram?.WebApp?.HapticFeedback
@@ -149,6 +162,8 @@ function App() {
     setResult(spinData)
     updateStats(spinData.user_stats)
     syncPulledCard(spinData)
+    leaderboardCacheRef.current = { mode: null, fetchedAt: 0, loaded: false }
+    seasonCacheRef.current = { userId: null, fetchedAt: 0, loaded: false }
   }
 
   const changeTab = useCallback((tab) => {
@@ -196,14 +211,40 @@ function App() {
     window.localStorage.setItem(TAB_STORAGE_KEY, activeTab)
   }, [activeTab])
 
-  const fetchCollection = useCallback(async (userId = user?.id) => {
+  useEffect(() => {
+    collectionCacheRef.current = { userId: null, fetchedAt: 0, loaded: false }
+    leaderboardCacheRef.current = { mode: null, fetchedAt: 0, loaded: false }
+    seasonCacheRef.current = { userId: null, fetchedAt: 0, loaded: false }
+    referralCacheRef.current = { userId: null, fetchedAt: 0, loaded: false }
+    collectionFetchInFlightRef.current = false
+    leaderboardFetchInFlightRef.current = false
+    seasonFetchInFlightRef.current = false
+    referralFetchInFlightRef.current = false
+    setCollection([])
+    setLeaderboard([])
+    setSeason(null)
+    setReferralData(null)
+    setLastError(null)
+  }, [user?.id])
+
+  const isCacheFresh = (fetchedAt, ttlMs) => (
+    fetchedAt > 0 && (Date.now() - fetchedAt) < ttlMs
+  )
+
+  const fetchCollection = useCallback(async (userId = user?.id, { force = false } = {}) => {
     if (!userId || collectionFetchInFlightRef.current) return
+
+    const cached = collectionCacheRef.current
+    if (!force && cached.loaded && cached.userId === userId && isCacheFresh(cached.fetchedAt, CACHE_TTL_MS.collection)) {
+      return
+    }
 
     collectionFetchInFlightRef.current = true
     setFetchingCollection(true)
     try {
       setLastError(null)
       setCollection(await fetchCollectionData())
+      collectionCacheRef.current = { userId, fetchedAt: Date.now(), loaded: true }
     } catch (error) {
       console.error('Error fetching collection:', error)
       const msg = error.response?.data?.detail || error.message || 'Network Error'
@@ -213,49 +254,77 @@ function App() {
       collectionFetchInFlightRef.current = false
       setFetchingCollection(false)
     }
-  }, [showToast, user])
+  }, [showToast, user?.id])
 
-  const fetchLeaderboard = useCallback(async (mode = lbMode) => {
+  const fetchLeaderboard = useCallback(async (mode = lbMode, { force = false } = {}) => {
+    const cached = leaderboardCacheRef.current
+    if (leaderboardFetchInFlightRef.current) return
+    if (!force && cached.loaded && cached.mode === mode && isCacheFresh(cached.fetchedAt, CACHE_TTL_MS.leaderboard)) {
+      return
+    }
+
+    leaderboardFetchInFlightRef.current = true
     setLoadingLeaderboard(true)
     try {
       setLeaderboard(await fetchLeaderboardData(mode))
+      leaderboardCacheRef.current = { mode, fetchedAt: Date.now(), loaded: true }
     } catch (error) {
       console.error('Error fetching leaderboard:', error)
       showToast(getApiErrorMessage(error, 'Не вдалося оновити лідерборд'))
     } finally {
+      leaderboardFetchInFlightRef.current = false
       setLoadingLeaderboard(false)
     }
   }, [getApiErrorMessage, lbMode, showToast])
 
-  const fetchSeason = useCallback(async (userId = user?.id) => {
+  const fetchSeason = useCallback(async (userId = user?.id, { force = false } = {}) => {
     if (!userId) return
 
+    const cached = seasonCacheRef.current
+    if (seasonFetchInFlightRef.current) return
+    if (!force && cached.loaded && cached.userId === userId && isCacheFresh(cached.fetchedAt, CACHE_TTL_MS.season)) {
+      return
+    }
+
+    seasonFetchInFlightRef.current = true
     try {
       setSeason(await fetchSeasonData())
+      seasonCacheRef.current = { userId, fetchedAt: Date.now(), loaded: true }
     } catch (error) {
       console.error('Error fetching season:', error)
       const msg = getApiErrorMessage(error, 'Не вдалося завантажити сезон')
       if (error.response?.status === 401) {
         showToast(msg)
       }
+    } finally {
+      seasonFetchInFlightRef.current = false
     }
-  }, [getApiErrorMessage, showToast, user])
+  }, [getApiErrorMessage, showToast, user?.id])
 
-  const fetchReferral = useCallback(async (userId = user?.id) => {
+  const fetchReferral = useCallback(async (userId = user?.id, { force = false } = {}) => {
     if (!userId) return
 
+    const cached = referralCacheRef.current
+    if (referralFetchInFlightRef.current) return
+    if (!force && cached.loaded && cached.userId === userId && isCacheFresh(cached.fetchedAt, CACHE_TTL_MS.referral)) {
+      return
+    }
+
+    referralFetchInFlightRef.current = true
     setLoadingReferral(true)
     try {
       setReferralData(await fetchReferralData())
+      referralCacheRef.current = { userId, fetchedAt: Date.now(), loaded: true }
     } catch (error) {
       console.error('Error fetching referral data:', error)
       if (error.response?.status === 401) {
         showToast(getApiErrorMessage(error, 'Не вдалося завантажити реферали'))
       }
     } finally {
+      referralFetchInFlightRef.current = false
       setLoadingReferral(false)
     }
-  }, [getApiErrorMessage, showToast, user])
+  }, [getApiErrorMessage, showToast, user?.id])
 
   const fetchUserStats = useCallback(async (currentUser = user) => {
     if (!currentUser) return
@@ -277,7 +346,8 @@ function App() {
       const response = await claimSeasonTaskRequest(taskId)
       showToast(response.data.message)
       updateStats(response.data.user_stats)
-      await fetchSeason(user.id)
+      seasonCacheRef.current = { userId: null, fetchedAt: 0, loaded: false }
+      await fetchSeason(user.id, { force: true })
     } catch (error) {
       showToast(error.response?.data?.detail || 'Помилка')
     } finally {
@@ -318,7 +388,6 @@ function App() {
 
     const initializeUser = async () => {
       await fetchUserStats(user)
-      await fetchCollection(user.id)
 
       const startParam = telegramStartParam
       if (startParam.startsWith('ref_')) {
@@ -483,6 +552,7 @@ function App() {
         }
         return card
       }))
+      collectionCacheRef.current = { userId: user.id, fetchedAt: Date.now(), loaded: true }
       triggerHaptic('success')
     } catch (error) {
       showToast(error.response?.data?.detail || 'Помилка продажу')
@@ -535,6 +605,10 @@ function App() {
       default: return 'text-[#a3a3a3] border-[#a3a3a3]'
     }
   }
+
+  const refreshCollection = useCallback(() => (
+    fetchCollection(user?.id, { force: true })
+  ), [fetchCollection, user?.id])
 
   if (!user) {
     if (isSessionBootstrapping) {
@@ -594,7 +668,7 @@ function App() {
         fetchingCollection={fetchingCollection}
         getRarityColor={getRarityColor}
         lastError={lastError}
-        onRefresh={fetchCollection}
+        onRefresh={refreshCollection}
         user={user}
         userStats={userStats}
         sellDuplicate={sellDuplicate}
