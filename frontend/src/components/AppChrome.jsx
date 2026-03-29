@@ -117,7 +117,6 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
 export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpenCollection, userStats }) {
   const isEnergyFull = userStats.energy >= userStats.max_energy
   const energyPercent = Math.round((userStats.energy / Math.max(1, userStats.max_energy)) * 100)
-  const collectionPercent = Math.round((collection.length / Math.max(1, userStats.total_cards)) * 100)
 
   return (
     <div className="w-full max-w-md flex flex-col gap-2 mb-2 sm:gap-2.5 sm:mb-3">
@@ -163,30 +162,6 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
           </div>
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={onOpenCollection}
-        className="glass-card premium-border relative w-full overflow-hidden rounded-[1rem] p-2.5 text-left transition-all active:scale-[0.98] sm:rounded-[1.4rem] sm:p-3"
-      >
-        <div className="flex items-center justify-between gap-3 relative z-10">
-          <div className="flex flex-col min-w-0">
-            <span className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500 sm:text-[9px]">Прогрес</span>
-            <span className="mt-0.5 truncate text-[10px] font-black text-slate-200 sm:text-[11px]">
-              {fetchingCollection ? 'Завантаження...' : 'Колекцію зібрано'}
-            </span>
-          </div>
-          <div className="text-[9px] font-black text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 sm:text-[11px]">
-            {collection.length} / {userStats.total_cards}
-          </div>
-        </div>
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-800/80 relative z-10 sm:h-1.5 sm:mt-3">
-          <div
-            className="h-full bg-gradient-to-r from-blue-600 via-cyan-400 to-emerald-400 transition-all duration-700"
-            style={{ width: `${collectionPercent}%` }}
-          />
-        </div>
-      </button>
     </div>
   )
 }
