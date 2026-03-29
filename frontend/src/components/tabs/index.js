@@ -1,0 +1,6 @@
+export { default as CollectionTab } from './CollectionTab'
+export { default as EventsTab } from './EventsTab'
+export { default as HomeView } from './HomeView'
+export { default as LeaderboardTab } from './LeaderboardTab'
+export { default as ReferralTab } from './ReferralTab'
+export { default as ShopTab } from './ShopTab'
