@@ -13,13 +13,13 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
         </div>
       )}
 
-      <div className="perspective-1000 relative w-full flex-1 max-h-[42vh] min-h-[320px] aspect-[3/4] max-w-[280px] group sm:aspect-[3/4.2] sm:max-w-[290px] sm:max-h-none">
+      <div className="perspective-1000 relative w-full flex-1 max-h-[42vh] min-h-[320px] aspect-[3/4] max-w-[260px] group sm:aspect-[3/4.2] sm:max-w-[280px] sm:max-h-none">
         <div
           className={`w-full h-full rounded-3xl shadow-lg border transition-transform duration-[800ms] transform-style-3d ${isFlipping ? 'rotate-y-180' : ''} ${result && isFlipping ? getRarityColor(result.rarity) : 'border-[#262626] bg-[#171717]'}`}
           style={{ willChange: 'transform' }}
         >
           <div
-            className="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-6 rounded-3xl bg-[#171717] border border-[#262626] overflow-hidden"
+            className="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-6 rounded-3xl bg-[#171717] border border-[#262626]"
             style={{ transform: 'translateZ(1px)' }}
           >
             <div className="dice-container">
@@ -38,18 +38,18 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
           </div>
 
           <div
-            className={`absolute inset-0 backface-hidden flex flex-col p-3 rounded-3xl bg-[#171717] border overflow-hidden ${result ? getRarityColor(result.rarity) : ''}`}
+            className={`absolute inset-0 backface-hidden flex flex-col p-1.5 rounded-3xl bg-[#171717] border ${result ? getRarityColor(result.rarity) : ''}`}
             style={{ transform: 'rotateY(180deg) translateZ(1px)' }}
           >
             {result && (
               <>
-                <div className="flex-1 rounded-2xl bg-[#0f0f0f] flex items-center justify-center overflow-hidden relative border border-[#262626]">
+                <div className="flex-1 rounded-[1.25rem] bg-[#0f0f0f] flex items-center justify-center overflow-hidden relative border border-[#262626]">
                   <img src={result.image} alt={result.name} className="w-full h-full object-cover animate-pop-in" />
-                  <div className="absolute bottom-4 left-4 right-4 py-2.5 rounded-xl bg-black/80 text-center backdrop-blur-md">
-                    <div className="text-xs font-bold text-[#ededed]">{result.name}</div>
+                  <div className="absolute bottom-4 left-4 right-4 py-2 rounded-xl bg-black/80 text-center backdrop-blur-md">
+                    <div className="text-[11px] font-bold text-[#ededed]">{result.name}</div>
                   </div>
                 </div>
-                <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#171717] border shadow-sm ${getRarityColor(result.rarity)}`}>
+                <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#171717] shadow-sm ${getRarityColor(result.rarity)}`}>
                   {result.rarity}
                 </div>
               </>
