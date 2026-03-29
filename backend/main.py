@@ -429,7 +429,8 @@ async def claim_referral(ref_id: int, current_user: models.User = Depends(get_cu
         "success": True,
         "message": "Реферал зараховано! Обом нараховано бонуси 🎉",
         "referrer_bonus": "+5 енергії, +500 монет",
-        "new_user_bonus": "+3 енергії, +200 монет"
+        "new_user_bonus": "+3 енергії, +200 монет",
+        "user_stats": get_user_state(db, new_user),
     }
 
 # --- Season Pass ---

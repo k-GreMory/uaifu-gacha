@@ -324,14 +324,19 @@ function App() {
       if (startParam.startsWith('ref_')) {
         const refId = parseInt(startParam.replace('ref_', ''), 10)
         if (refId && refId !== user.id && !processedReferralRef.current.has(startParam)) {
-          processedReferralRef.current.add(startParam)
-          claimReferral(refId)
-            .then(response => showToast(response.data.message))
-            .catch((error) => {
-              if (error?.response?.status !== 400) {
-                showToast(getApiErrorMessage(error, 'Не вдалося зарахувати реферал'))
-              }
-            })
+          try {
+            const response = await claimReferral(refId)
+            processedReferralRef.current.add(startParam)
+            showToast(response.data.message)
+            updateStats(response.data.user_stats)
+          } catch (error) {
+            if (error?.response?.status === 400) {
+              processedReferralRef.current.add(startParam)
+              return
+            }
+
+            showToast(getApiErrorMessage(error, 'Не вдалося зарахувати реферал'))
+          }
         }
       }
     }

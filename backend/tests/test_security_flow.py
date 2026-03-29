@@ -291,6 +291,8 @@ class SecurityFlowTests(unittest.TestCase):
 
         self.assertTrue(response["success"])
         self.assertIsNotNone(referral)
+        self.assertEqual(response["user_stats"]["coins"], 450)
+        self.assertEqual(response["user_stats"]["energy"], 20)
 
     def test_ensure_season_exists_replaces_expired_active_season(self):
         with SessionLocal() as db:
