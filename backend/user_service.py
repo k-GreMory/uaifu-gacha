@@ -40,12 +40,21 @@ def get_user_state(db: Session, user: models.User):
         next_energy = max(0, int((10 * 60) - elapsed))
 
     total_cards = db.query(models.Card).count()
+    
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    can_claim = False
+    if not user.last_login_date or user.last_login_date.date() < now_naive.date():
+        can_claim = True
+
     return {
         "energy": user.energy,
         "max_energy": user.max_energy,
         "coins": user.coins,
         "next_energy_in_seconds": next_energy,
         "total_cards": total_cards,
+        "pity_counter": user.pity_counter or 0,
+        "login_streak": user.login_streak or 0,
+        "can_claim_daily": can_claim,
     }
 
 

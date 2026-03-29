@@ -27,6 +27,10 @@ from schemas import (
     UserCardInfo,
     UserState,
 )
+from pydantic import BaseModel
+
+class SellDuplicateRequest(BaseModel):
+    card_id: str
 from user_service import get_current_user, get_or_create_user, get_user_state
 from starlette.requests import Request
 
@@ -101,17 +105,34 @@ async def spin(current_user: models.User = Depends(get_current_user), db: Sessio
     user.energy -= 1
     user.total_spins = (user.total_spins or 0) + 1
     
+    # Pity System Logic
+    user.pity_counter = (user.pity_counter or 0) + 1
+    
     # 2. Logic for rarity
-    total_chance = sum(RARITY_CHANCES.values())
-    rand = random.randint(1, total_chance)
-    current_sum = 0
-    rarity = "Common"
-    # To handle dictionaries unordered properly, better to predefine order or just test sequentially
-    for r_name, r_chance in RARITY_CHANCES.items():
-        current_sum += r_chance
-        if rand <= current_sum:
-            rarity = r_name
-            break
+    if user.pity_counter >= 50:
+        pity_chances = {"Legendary": 90, "Mythic": 10}
+        total_chance = sum(pity_chances.values())
+        rand = random.randint(1, total_chance)
+        current_sum = 0
+        rarity = "Legendary"
+        for r_name, r_chance in pity_chances.items():
+            current_sum += r_chance
+            if rand <= current_sum:
+                rarity = r_name
+                break
+    else:
+        total_chance = sum(RARITY_CHANCES.values())
+        rand = random.randint(1, total_chance)
+        current_sum = 0
+        rarity = "Common"
+        for r_name, r_chance in RARITY_CHANCES.items():
+            current_sum += r_chance
+            if rand <= current_sum:
+                rarity = r_name
+                break
+                
+    if rarity in ["Legendary", "Mythic"]:
+        user.pity_counter = 0
     
     # 3. Pick random card of that rarity
     possible_card = db.query(models.Card).filter(models.Card.rarity == rarity).order_by(func.random()).first()
@@ -539,6 +560,56 @@ async def claim_season_reward(task_id: int, current_user: models.User = Depends(
     return {
         "success": True,
         "message": f"Нагорода отримана! +{task.reward_coins} 🪙 +{task.reward_energy} ⚡",
+        "user_stats": get_user_state(db, user)
+    }
+
+@app.post("/claim_daily")
+async def claim_daily(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = current_user
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    
+    if user.last_login_date and user.last_login_date.date() >= now.date():
+        raise HTTPException(status_code=400, detail="Бонус вже отримано сьогодні!")
+        
+    if user.last_login_date and user.last_login_date.date() == now.date() - timedelta(days=1):
+        user.login_streak = (user.login_streak or 0) + 1
+    else:
+        user.login_streak = 1
+        
+    reward_coins = min(200 + (user.login_streak * 50), 1000)
+    
+    if user.energy < user.max_energy:
+        user.energy = min(user.max_energy, user.energy + 5)
+        
+    user.coins += reward_coins
+    user.last_login_date = now
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Щоденний бонус (День {user.login_streak})! +{reward_coins} 🪙",
+        "user_stats": get_user_state(db, user)
+    }
+
+@app.post("/sell_duplicate")
+async def sell_duplicate(data: SellDuplicateRequest, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = current_user
+    user_card = db.query(models.UserCard).filter(models.UserCard.user_id == user.id, models.UserCard.card_id == data.card_id).first()
+    
+    if not user_card or user_card.duplicates < 1:
+        raise HTTPException(status_code=400, detail="Немає дублікатів для продажу!")
+        
+    card = user_card.card
+    coin_rewards = {"Common": 20, "UnCommon": 40, "Rare": 100, "Epic": 300, "Legendary": 1000, "Mythic": 4000}
+    sell_price = coin_rewards.get(card.rarity, 20)
+    
+    user_card.duplicates -= 1
+    user.coins += sell_price
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Дублікат продано за +{sell_price} 🪙!",
         "user_stats": get_user_state(db, user)
     }
 

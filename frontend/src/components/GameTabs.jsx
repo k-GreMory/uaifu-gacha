@@ -69,13 +69,18 @@ export function HomeView({ formatTime, getRarityColor, isFlipping, loading, resu
         >
           {loading ? 'ЗАВАНТАЖЕННЯ...' : (userStats.energy < 1 ? `⏳ ${formatTime(userStats.next_energy_in_seconds)}` : 'КРУТИТИ')}
         </button>
-        <div className="mt-4 min-h-8 text-center px-6">
+        <div className="mt-4 flex flex-col items-center gap-1 min-h-8 text-center px-6">
           {result ? (
             <p className="text-xs font-medium text-[#ededed] animate-fade-in">{result.message}</p>
           ) : (
             <p className={`text-xs font-medium ${energyReady ? 'text-[#737373]' : 'text-[#f43f5e]'}`}>
               {energyReady ? '1 спін = 1 випадкова картка' : 'Енергія відновлюється автоматично'}
             </p>
+          )}
+          {(userStats.pity_counter || 0) > 0 && (
+            <div className="text-[10px] font-bold text-[#fbbf24] mt-1 bg-[#fbbf24]/10 px-2 py-0.5 rounded-full border border-[#fbbf24]/20">
+              Гарант: {userStats.pity_counter} / 50
+            </div>
           )}
         </div>
       </div>
@@ -143,7 +148,7 @@ export function ShopTab({ buyEnergy, loading, premiumSpin, userStats }) {
 
 const RARITY_WEIGHT = { Mythic: 6, Legendary: 5, Epic: 4, Rare: 3, UnCommon: 2, Common: 1 }
 
-export function CollectionTab({ collection, fetchingCollection, getRarityColor, lastError, onRefresh, user, userStats }) {
+export function CollectionTab({ collection, fetchingCollection, getRarityColor, lastError, onRefresh, user, userStats, sellDuplicate, loading }) {
   const [debugMode, setDebugMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [rarityFilter, setRarityFilter] = useState('ALL')
@@ -265,9 +270,18 @@ export function CollectionTab({ collection, fetchingCollection, getRarityColor, 
                 {card.rarity}
               </span>
               {card.duplicates > 0 && (
-                <span className="text-[10px] font-medium text-[#737373]">
-                  Lvl: {card.duplicates + 1}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-medium text-[#737373]">
+                    Lvl: {card.duplicates + 1}
+                  </span>
+                  <button
+                    onClick={() => sellDuplicate(card.card_id)}
+                    disabled={loading}
+                    className="ml-1 px-1.5 py-0.5 rounded bg-[#fbbf24]/10 border border-[#fbbf24]/20 text-[#fbbf24] text-[8px] font-bold uppercase active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    Продати
+                  </button>
+                </div>
               )}
             </div>
 

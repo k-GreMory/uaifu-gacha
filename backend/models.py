@@ -19,6 +19,9 @@ class User(Base):
     last_energy_update = Column(DateTime, default=utcnow_naive)
     total_spins = Column(Integer, default=0)  # For leaderboard
     referred_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    pity_counter = Column(Integer, default=0)
+    last_login_date = Column(DateTime, nullable=True)
+    login_streak = Column(Integer, default=0)
 
     collection = relationship("UserCard", back_populates="owner")
 

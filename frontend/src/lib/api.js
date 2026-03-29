@@ -100,3 +100,11 @@ export const startDroneGameRequest = () => (
 export const claimDroneReward = (payload) => (
   apiClient.post('/games/drone/reward', payload)
 )
+
+export const claimDailyReward = () => (
+  apiClient.post('/claim_daily')
+)
+
+export const sellDuplicateCard = (cardId) => (
+  apiClient.post('/sell_duplicate', { card_id: cardId })
+)

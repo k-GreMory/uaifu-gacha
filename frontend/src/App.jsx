@@ -21,7 +21,9 @@ import {
   fetchSeasonData,
   fetchUserStateData,
   premiumSpinRequest,
-  spinRequest
+  spinRequest,
+  claimDailyReward,
+  sellDuplicateCard
 } from './lib/api'
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1'])
@@ -362,6 +364,22 @@ function App() {
     }
   }, [user])
 
+  useEffect(() => {
+    if (userStats?.can_claim_daily) {
+      const claim = async () => {
+        try {
+          const response = await claimDailyReward()
+          showToast(response.data.message)
+          updateStats(response.data.user_stats)
+          setTimeout(() => triggerHaptic('success'), 300)
+        } catch (e) {
+          console.error('Failed to claim daily reward', e)
+        }
+      }
+      claim()
+    }
+  }, [userStats?.can_claim_daily, showToast])
+
   const formatTime = (totalSeconds) => {
     const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0')
     const s = (totalSeconds % 60).toString().padStart(2, '0')
@@ -424,6 +442,31 @@ function App() {
       updateStats(response.data.user_stats)
     } catch (error) {
       showToast(error.response?.data?.detail || 'Помилка покупки')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const sellDuplicate = async (cardId) => {
+    if (!user) return
+    setLoading(true)
+    triggerHaptic('selection')
+
+    try {
+      const response = await sellDuplicateCard(cardId)
+      showToast(response.data.message)
+      updateStats(response.data.user_stats)
+
+      setCollection(prev => prev.map(card => {
+        if (card.card_id === cardId && card.duplicates > 0) {
+          return { ...card, duplicates: card.duplicates - 1 }
+        }
+        return card
+      }))
+      triggerHaptic('success')
+    } catch (error) {
+      showToast(error.response?.data?.detail || 'Помилка продажу')
+      triggerHaptic('error')
     } finally {
       setLoading(false)
     }
@@ -534,6 +577,8 @@ function App() {
         onRefresh={fetchCollection}
         user={user}
         userStats={userStats}
+        sellDuplicate={sellDuplicate}
+        loading={loading}
       />
     )
   } else if (activeTab === 'leaderboard') {

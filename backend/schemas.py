@@ -10,8 +10,9 @@ class UserState(BaseModel):
     coins: int
     next_energy_in_seconds: int
     total_cards: int = 200
-
-
+    pity_counter: int = 0
+    login_streak: int = 0
+    can_claim_daily: bool = False
 class SpinResult(BaseModel):
     card_id: str
     name: str
