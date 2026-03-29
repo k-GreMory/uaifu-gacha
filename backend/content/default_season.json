@@ -1,0 +1,63 @@
+{
+  "duration_days": 30,
+  "is_active": true,
+  "name": "Сезон 1: Весна Вайфу 🌸",
+  "tasks": [
+    {
+      "reward_coins": 100,
+      "reward_energy": 0,
+      "target": 1,
+      "task_type": "spins",
+      "title": "Перший спін"
+    },
+    {
+      "reward_coins": 500,
+      "reward_energy": 2,
+      "target": 10,
+      "task_type": "spins",
+      "title": "Зроби 10 спінів"
+    },
+    {
+      "reward_coins": 2000,
+      "reward_energy": 5,
+      "target": 50,
+      "task_type": "spins",
+      "title": "Зроби 50 спінів"
+    },
+    {
+      "reward_coins": 5000,
+      "reward_energy": 10,
+      "target": 100,
+      "task_type": "spins",
+      "title": "Зроби 100 спінів"
+    },
+    {
+      "reward_coins": 300,
+      "reward_energy": 1,
+      "target": 5,
+      "task_type": "unique_cards",
+      "title": "Зберіть 5 унікальних карток"
+    },
+    {
+      "reward_coins": 1500,
+      "reward_energy": 3,
+      "target": 25,
+      "task_type": "unique_cards",
+      "title": "Зберіть 25 унікальних карток"
+    },
+    {
+      "reward_coins": 3000,
+      "reward_energy": 5,
+      "target": 50,
+      "task_type": "unique_cards",
+      "title": "Зберіть 50 унікальних карток"
+    },
+    {
+      "reward_coins": 1000,
+      "reward_energy": 2,
+      "target": 1,
+      "task_type": "premium_spins",
+      "title": "Зробіть 1 преміум спін"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "daily_rewards": {
+    "base_coins": 200,
+    "energy_bonus": 5,
+    "max_coins": 1000,
+    "streak_step_coins": 50
+  },
+  "drone": {
+    "score_per_coin": 5
+  },
+  "duplicate_rewards": {
+    "sell": {
+      "Common": 20,
+      "Epic": 300,
+      "Legendary": 1000,
+      "Mythic": 4000,
+      "Rare": 100,
+      "UnCommon": 40
+    },
+    "standard": {
+      "Common": 10,
+      "Epic": 150,
+      "Legendary": 500,
+      "Mythic": 2000,
+      "Rare": 50,
+      "UnCommon": 20
+    }
+  },
+  "pricing": {
+    "energy_purchase_amount": 1,
+    "energy_purchase_cost": 1000,
+    "premium_spin_cost": 10000
+  },
+  "rarity_chances": {
+    "pity": {
+      "Legendary": 90,
+      "Mythic": 10
+    },
+    "pity_threshold": 50,
+    "premium": {
+      "Epic": 300,
+      "Legendary": 90,
+      "Mythic": 10,
+      "Rare": 600
+    }
+  },
+  "referral_rewards": {
+    "new_user": {
+      "coins": 200,
+      "energy": 3
+    },
+    "referrer": {
+      "coins": 500,
+      "energy": 5
+    }
+  }
+}

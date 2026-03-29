@@ -6,8 +6,9 @@
 - Database: SQLite via `DATABASE_URL`
 
 ## Balance And Season Seeds
-- Game economy lives in [backend/game_balance.py](/D:/gachaAPP/backend/game_balance.py)
-- Default season seed lives in [backend/season_catalog.py](/D:/gachaAPP/backend/season_catalog.py)
+- Game economy loads from [backend/content/game_balance.json](/D:/gachaAPP/backend/content/game_balance.json) via [backend/game_balance.py](/D:/gachaAPP/backend/game_balance.py)
+- Default season seed loads from [backend/content/default_season.json](/D:/gachaAPP/backend/content/default_season.json) via [backend/season_catalog.py](/D:/gachaAPP/backend/season_catalog.py)
+- Optional override envs: `GAME_BALANCE_FILE`, `DEFAULT_SEASON_FILE`
 
 ## Critical Env
 ### Backend
