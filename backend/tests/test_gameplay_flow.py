@@ -22,6 +22,14 @@ sys.path.insert(0, str(BACKEND_DIR))
 import main
 import models
 from database import SessionLocal
+from game_balance import (
+    DAILY_REWARD_BASE_COINS,
+    DAILY_REWARD_ENERGY_BONUS,
+    DAILY_REWARD_STREAK_STEP_COINS,
+    ENERGY_PURCHASE_COST,
+    PREMIUM_SPIN_COST,
+    PITY_THRESHOLD,
+)
 from routers.gameplay import SellDuplicateRequest
 from services.gameplay_service import SELL_DUPLICATE_REWARDS
 from user_service import utcnow_naive
@@ -80,7 +88,7 @@ class GameplayFlowTests(unittest.TestCase):
 
     def test_spin_consumes_energy_tracks_progress_and_resets_pity_for_legendary(self):
         user_id = 70001
-        self.create_user(user_id, energy=3, coins=100, pity_counter=49, total_spins=0)
+        self.create_user(user_id, energy=3, coins=100, pity_counter=PITY_THRESHOLD - 1, total_spins=0)
         card = self.get_card("Legendary")
 
         with SessionLocal() as db:
@@ -134,7 +142,7 @@ class GameplayFlowTests(unittest.TestCase):
 
     def test_premium_spin_spends_coins_and_creates_purchase_log(self):
         user_id = 70002
-        self.create_user(user_id, energy=7, coins=12000, total_spins=4)
+        self.create_user(user_id, energy=7, coins=PREMIUM_SPIN_COST + 2000, total_spins=4)
         card = self.get_card("Epic")
 
         with SessionLocal() as db:
@@ -160,11 +168,11 @@ class GameplayFlowTests(unittest.TestCase):
         self.assertEqual(coins, 2000)
         self.assertEqual(total_spins, 5)
         self.assertEqual(energy, 7)
-        self.assertEqual(purchase_cost, 10000)
+        self.assertEqual(purchase_cost, PREMIUM_SPIN_COST)
 
     def test_buy_energy_spends_coins_and_caps_at_max(self):
         user_id = 70003
-        self.create_user(user_id, energy=19, max_energy=20, coins=1500)
+        self.create_user(user_id, energy=19, max_energy=20, coins=ENERGY_PURCHASE_COST + 500)
 
         with SessionLocal() as db:
             user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -183,11 +191,11 @@ class GameplayFlowTests(unittest.TestCase):
         self.assertEqual(payload["user_stats"]["coins"], 500)
         self.assertEqual(energy, 20)
         self.assertEqual(coins, 500)
-        self.assertEqual(purchase_cost, 1000)
+        self.assertEqual(purchase_cost, ENERGY_PURCHASE_COST)
 
     def test_buy_energy_rejects_full_energy_without_spending(self):
         user_id = 70004
-        self.create_user(user_id, energy=20, max_energy=20, coins=1500)
+        self.create_user(user_id, energy=20, max_energy=20, coins=ENERGY_PURCHASE_COST + 500)
 
         with SessionLocal() as db:
             user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -198,7 +206,7 @@ class GameplayFlowTests(unittest.TestCase):
 
         self.assertEqual(error.exception.status_code, 400)
         self.assertEqual(error.exception.detail, "Енергія вже повна! Спочатку витрать хоча б 1 ⚡")
-        self.assertEqual(coins, 1500)
+        self.assertEqual(coins, ENERGY_PURCHASE_COST + 500)
         self.assertEqual(purchase_count, 0)
 
     def test_claim_daily_awards_streak_bonus_once_per_day(self):
@@ -212,7 +220,7 @@ class GameplayFlowTests(unittest.TestCase):
                 self.run_async(main.claim_daily(current_user=user, db=db))
 
         self.assertTrue(payload["success"])
-        self.assertEqual(payload["user_stats"]["coins"], 350)
+        self.assertEqual(payload["user_stats"]["coins"], 100 + DAILY_REWARD_BASE_COINS + DAILY_REWARD_STREAK_STEP_COINS)
         self.assertEqual(payload["user_stats"]["energy"], 20)
         self.assertEqual(payload["user_stats"]["login_streak"], 1)
         self.assertFalse(payload["user_stats"]["can_claim_daily"])
@@ -284,8 +292,8 @@ class GameplayFlowTests(unittest.TestCase):
             payload = self.run_async(main.claim_daily(current_user=user, db=db))
 
         self.assertEqual(payload["user_stats"]["login_streak"], 4)
-        self.assertEqual(payload["user_stats"]["coins"], 400)
-        self.assertEqual(payload["user_stats"]["energy"], 15)
+        self.assertEqual(payload["user_stats"]["coins"], DAILY_REWARD_BASE_COINS + (4 * DAILY_REWARD_STREAK_STEP_COINS))
+        self.assertEqual(payload["user_stats"]["energy"], 10 + DAILY_REWARD_ENERGY_BONUS)
 
 
 if __name__ == "__main__":

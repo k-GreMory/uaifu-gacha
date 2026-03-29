@@ -8,12 +8,21 @@ from sqlalchemy.sql.expression import func
 
 import models
 from cards_data import RARITY_CHANCES
+from game_balance import (
+    DAILY_REWARD_ENERGY_BONUS,
+    ENERGY_PURCHASE_AMOUNT,
+    ENERGY_PURCHASE_COST,
+    PITY_RARITY_CHANCES,
+    PITY_THRESHOLD,
+    PREMIUM_RARITY_CHANCES,
+    PREMIUM_SPIN_COST,
+    SELL_DUPLICATE_REWARDS,
+    STANDARD_DUPLICATE_REWARDS,
+    calculate_daily_reward_coins,
+    get_sell_duplicate_reward,
+    get_standard_duplicate_reward,
+)
 from user_service import get_user_state, restart_energy_regeneration, sync_full_energy_timestamp
-
-STANDARD_DUPLICATE_REWARDS = {"Common": 10, "UnCommon": 20, "Rare": 50, "Epic": 150, "Legendary": 500, "Mythic": 2000}
-SELL_DUPLICATE_REWARDS = {"Common": 20, "UnCommon": 40, "Rare": 100, "Epic": 300, "Legendary": 1000, "Mythic": 4000}
-PREMIUM_RARITY_CHANCES = {"Rare": 600, "Epic": 300, "Legendary": 90, "Mythic": 10}
-PITY_RARITY_CHANCES = {"Legendary": 90, "Mythic": 10}
 
 
 def draw_card_for_rarity(db: Session, rarity: str):
@@ -42,7 +51,7 @@ def resolve_rarity(chances: dict[str, int], default_rarity: str) -> str:
 
 
 def resolve_standard_rarity(pity_counter: int) -> str:
-    if pity_counter >= 50:
+    if pity_counter >= PITY_THRESHOLD:
         return resolve_rarity(PITY_RARITY_CHANCES, "Legendary")
     return resolve_rarity(RARITY_CHANCES, "Common")
 
@@ -58,7 +67,7 @@ def apply_card_result(db: Session, user: models.User, card: models.Card, rarity:
     ).first()
     is_duplicate = False
     new_level = 0
-    gained_coins = STANDARD_DUPLICATE_REWARDS.get(rarity, 10)
+    gained_coins = get_standard_duplicate_reward(rarity)
 
     spin_log = models.SpinLog(user_id=user.id, card_id=card.id)
     if existing:
@@ -124,16 +133,16 @@ def perform_spin(db: Session, user: models.User):
 
 
 def perform_premium_spin(db: Session, user: models.User):
-    if user.coins < 10000:
-        raise HTTPException(status_code=400, detail="Недостатньо монет! Потрібно 10,000 🪙")
+    if user.coins < PREMIUM_SPIN_COST:
+        raise HTTPException(status_code=400, detail=f"Недостатньо монет! Потрібно {PREMIUM_SPIN_COST:,} 🪙")
 
-    user.coins -= 10000
+    user.coins -= PREMIUM_SPIN_COST
     user.total_spins = (user.total_spins or 0) + 1
 
     rarity = resolve_premium_rarity()
     card = draw_card_for_rarity(db, rarity)
     is_duplicate, gained_coins, new_level = apply_card_result(db, user, card, rarity)
-    db.add(models.PurchaseLog(user_id=user.id, item="premium_spin", cost=10000))
+    db.add(models.PurchaseLog(user_id=user.id, item="premium_spin", cost=PREMIUM_SPIN_COST))
     db.commit()
     return build_spin_payload(db, user, card, rarity, is_duplicate, gained_coins, new_level, premium=True)
 
@@ -141,17 +150,17 @@ def perform_premium_spin(db: Session, user: models.User):
 def buy_energy_for_user(db: Session, user: models.User):
     if user.energy >= user.max_energy:
         raise HTTPException(status_code=400, detail="Енергія вже повна! Спочатку витрать хоча б 1 ⚡")
-    if user.coins < 1000:
-        raise HTTPException(status_code=400, detail="Недостатньо монет! Потрібно 1,000 🪙")
+    if user.coins < ENERGY_PURCHASE_COST:
+        raise HTTPException(status_code=400, detail=f"Недостатньо монет! Потрібно {ENERGY_PURCHASE_COST:,} 🪙")
 
-    user.coins -= 1000
-    user.energy = min(user.max_energy, user.energy + 1)
+    user.coins -= ENERGY_PURCHASE_COST
+    user.energy = min(user.max_energy, user.energy + ENERGY_PURCHASE_AMOUNT)
     sync_full_energy_timestamp(user)
-    db.add(models.PurchaseLog(user_id=user.id, item="energy", cost=1000))
+    db.add(models.PurchaseLog(user_id=user.id, item="energy", cost=ENERGY_PURCHASE_COST))
     db.commit()
     return {
         "success": True,
-        "message": "Придбано 1 Енергію ⚡",
+        "message": f"Придбано {ENERGY_PURCHASE_AMOUNT} Енергію ⚡",
         "user_stats": get_user_state(db, user),
     }
 
@@ -227,9 +236,9 @@ def claim_daily_reward_for_user(db: Session, user: models.User):
     else:
         user.login_streak = 1
 
-    reward_coins = min(200 + (user.login_streak * 50), 1000)
+    reward_coins = calculate_daily_reward_coins(user.login_streak)
     if user.energy < user.max_energy:
-        user.energy = min(user.max_energy, user.energy + 5)
+        user.energy = min(user.max_energy, user.energy + DAILY_REWARD_ENERGY_BONUS)
     sync_full_energy_timestamp(user, now)
 
     user.coins += reward_coins
@@ -255,7 +264,7 @@ def sell_duplicate_for_user(db: Session, user: models.User, card_id: str):
     if not user_card or user_card.duplicates < 1:
         raise HTTPException(status_code=400, detail="Немає дублікатів для продажу!")
 
-    sell_price = SELL_DUPLICATE_REWARDS.get(user_card.card.rarity, 20)
+    sell_price = get_sell_duplicate_reward(user_card.card.rarity)
     user_card.duplicates -= 1
     user.coins += sell_price
     db.commit()

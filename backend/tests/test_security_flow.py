@@ -28,6 +28,7 @@ os.environ["TELEGRAM_AUTH_MAX_AGE_SECONDS"] = "86400"
 sys.path.insert(0, str(BACKEND_DIR))
 
 from auth import get_authenticated_telegram_user
+from game_balance import REFERRAL_NEW_USER_COINS
 import main
 import models
 from database import SessionLocal
@@ -295,7 +296,7 @@ class SecurityFlowTests(unittest.TestCase):
 
         self.assertTrue(response["success"])
         self.assertIsNotNone(referral)
-        self.assertEqual(response["user_stats"]["coins"], 450)
+        self.assertEqual(response["user_stats"]["coins"], 250 + REFERRAL_NEW_USER_COINS)
         self.assertEqual(response["user_stats"]["energy"], 20)
 
     def test_ensure_season_exists_replaces_expired_active_season(self):

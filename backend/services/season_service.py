@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.sql.expression import func
 
 import models
+from season_catalog import get_default_season_seed
 from user_service import get_user_state, sync_full_energy_timestamp
 
 
@@ -40,24 +41,19 @@ def ensure_season_exists(db: Session):
             db.commit()
         return season
 
+    seed = get_default_season_seed(now)
     season = models.Season(
-        name="Сезон 1: Весна Вайфу 🌸",
-        start_date=now,
-        end_date=now + timedelta(days=30),
-        is_active=True,
+        name=seed["name"],
+        start_date=seed["start_date"],
+        end_date=seed["end_date"],
+        is_active=seed["is_active"],
     )
     db.add(season)
     db.flush()
 
     db.add_all([
-        models.SeasonTask(season_id=season.id, title="Перший спін", task_type="spins", target=1, reward_coins=100, reward_energy=0),
-        models.SeasonTask(season_id=season.id, title="Зроби 10 спінів", task_type="spins", target=10, reward_coins=500, reward_energy=2),
-        models.SeasonTask(season_id=season.id, title="Зроби 50 спінів", task_type="spins", target=50, reward_coins=2000, reward_energy=5),
-        models.SeasonTask(season_id=season.id, title="Зроби 100 спінів", task_type="spins", target=100, reward_coins=5000, reward_energy=10),
-        models.SeasonTask(season_id=season.id, title="Зберіть 5 унікальних карток", task_type="unique_cards", target=5, reward_coins=300, reward_energy=1),
-        models.SeasonTask(season_id=season.id, title="Зберіть 25 унікальних карток", task_type="unique_cards", target=25, reward_coins=1500, reward_energy=3),
-        models.SeasonTask(season_id=season.id, title="Зберіть 50 унікальних карток", task_type="unique_cards", target=50, reward_coins=3000, reward_energy=5),
-        models.SeasonTask(season_id=season.id, title="Зробіть 1 преміум спін", task_type="premium_spins", target=1, reward_coins=1000, reward_energy=2),
+        models.SeasonTask(season_id=season.id, **task_seed)
+        for task_seed in seed["tasks"]
     ])
     db.commit()
     db.refresh(season)

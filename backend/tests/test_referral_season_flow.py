@@ -22,6 +22,14 @@ sys.path.insert(0, str(BACKEND_DIR))
 import main
 import models
 from database import SessionLocal
+from game_balance import (
+    REFERRAL_NEW_USER_COINS,
+    REFERRAL_NEW_USER_ENERGY,
+    REFERRAL_REFERRER_COINS,
+    REFERRAL_REFERRER_ENERGY,
+    get_referral_reward_description,
+)
+from season_catalog import DEFAULT_SEASON_NAME, DEFAULT_SEASON_TASKS
 
 
 def utcnow_naive():
@@ -67,7 +75,7 @@ class ReferralSeasonFlowTests(unittest.TestCase):
 
         self.assertEqual(payload["link"], "https://t.me/uaifu_test_bot?start=ref_80001")
         self.assertEqual(payload["ref_count"], 2)
-        self.assertEqual(payload["reward_per_ref"], "5 енергії + 500 монет")
+        self.assertEqual(payload["reward_per_ref"], get_referral_reward_description())
 
     def test_referral_self_invite_is_rejected(self):
         with SessionLocal() as db:
@@ -89,9 +97,9 @@ class ReferralSeasonFlowTests(unittest.TestCase):
         with SessionLocal() as db:
             referrer = main.get_or_create_user(db, 80021, first_name="Referrer")
             invited = main.get_or_create_user(db, 80022, first_name="Newbie")
-            referrer.energy = 18
+            referrer.energy = 20 - REFERRAL_REFERRER_ENERGY + 3
             referrer.coins = 100
-            invited.energy = 19
+            invited.energy = 20 - REFERRAL_NEW_USER_ENERGY + 2
             invited.coins = 25
             db.commit()
 
@@ -119,13 +127,13 @@ class ReferralSeasonFlowTests(unittest.TestCase):
                 )
 
         self.assertTrue(response["success"])
-        self.assertEqual(response["user_stats"]["coins"], 225)
+        self.assertEqual(response["user_stats"]["coins"], 25 + REFERRAL_NEW_USER_COINS)
         self.assertEqual(response["user_stats"]["energy"], 20)
         self.assertIsNotNone(referral)
         self.assertEqual(referrer_energy, 20)
-        self.assertEqual(referrer_coins, 600)
+        self.assertEqual(referrer_coins, 100 + REFERRAL_REFERRER_COINS)
         self.assertEqual(invited_energy, 20)
-        self.assertEqual(invited_coins, 225)
+        self.assertEqual(invited_coins, 25 + REFERRAL_NEW_USER_COINS)
         self.assertEqual(invited_referred_by, 80021)
         self.assertEqual(second_claim.exception.status_code, 400)
         self.assertEqual(second_claim.exception.detail, "Реферал вже зареєстровано")
@@ -137,6 +145,8 @@ class ReferralSeasonFlowTests(unittest.TestCase):
             db.commit()
 
             season = main.ensure_season_exists(db)
+            self.assertEqual(season.name, DEFAULT_SEASON_NAME)
+            self.assertEqual(len(season.tasks), len(DEFAULT_SEASON_TASKS))
             first_spin_task = next(task for task in season.tasks if task.target == 1 and task.task_type == "spins")
             premium_task = next(task for task in season.tasks if task.task_type == "premium_spins")
             db.add(
@@ -203,11 +213,11 @@ class ReferralSeasonFlowTests(unittest.TestCase):
                 )
 
         self.assertTrue(response["success"])
-        self.assertEqual(response["user_stats"]["coins"], 600)
+        self.assertEqual(response["user_stats"]["coins"], 100 + task.reward_coins)
         self.assertEqual(response["user_stats"]["energy"], 20)
         self.assertIsNotNone(progress_row)
         self.assertTrue(progress_row.claimed)
-        self.assertEqual(user_coins, 600)
+        self.assertEqual(user_coins, 100 + task.reward_coins)
         self.assertEqual(user_energy, 20)
         self.assertEqual(second_claim.exception.status_code, 400)
         self.assertEqual(second_claim.exception.detail, "Нагорода вже отримана!")

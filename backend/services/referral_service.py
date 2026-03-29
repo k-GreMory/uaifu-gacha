@@ -4,6 +4,13 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import models
+from game_balance import (
+    REFERRAL_NEW_USER_COINS,
+    REFERRAL_NEW_USER_ENERGY,
+    REFERRAL_REFERRER_COINS,
+    REFERRAL_REFERRER_ENERGY,
+    get_referral_reward_description,
+)
 from user_service import get_user_state, sync_full_energy_timestamp
 
 
@@ -25,7 +32,7 @@ def get_referral_link_payload(db: Session, user: models.User):
     return {
         "link": link,
         "ref_count": ref_count,
-        "reward_per_ref": "5 енергії + 500 монет",
+        "reward_per_ref": get_referral_reward_description(),
     }
 
 
@@ -45,10 +52,10 @@ def claim_referral_reward(db: Session, current_user: models.User, ref_id: int):
         raise HTTPException(status_code=404, detail="Запрошувач не знайдений")
 
     db.add(models.Referral(referrer_id=ref_id, invited_id=current_user.id, rewarded=True))
-    referrer.energy = min(referrer.max_energy, referrer.energy + 5)
-    referrer.coins += 500
-    current_user.energy = min(current_user.max_energy, current_user.energy + 3)
-    current_user.coins += 200
+    referrer.energy = min(referrer.max_energy, referrer.energy + REFERRAL_REFERRER_ENERGY)
+    referrer.coins += REFERRAL_REFERRER_COINS
+    current_user.energy = min(current_user.max_energy, current_user.energy + REFERRAL_NEW_USER_ENERGY)
+    current_user.coins += REFERRAL_NEW_USER_COINS
     current_user.referred_by = ref_id
     sync_full_energy_timestamp(referrer)
     sync_full_energy_timestamp(current_user)
@@ -57,7 +64,7 @@ def claim_referral_reward(db: Session, current_user: models.User, ref_id: int):
     return {
         "success": True,
         "message": "Реферал зараховано! Обом нараховано бонуси 🎉",
-        "referrer_bonus": "+5 енергії, +500 монет",
-        "new_user_bonus": "+3 енергії, +200 монет",
+        "referrer_bonus": f"+{REFERRAL_REFERRER_ENERGY} енергії, +{REFERRAL_REFERRER_COINS} монет",
+        "new_user_bonus": f"+{REFERRAL_NEW_USER_ENERGY} енергії, +{REFERRAL_NEW_USER_COINS} монет",
         "user_stats": get_user_state(db, current_user),
     }

@@ -5,6 +5,10 @@
 - Backend API: Railway
 - Database: SQLite via `DATABASE_URL`
 
+## Balance And Season Seeds
+- Game economy lives in [backend/game_balance.py](/D:/gachaAPP/backend/game_balance.py)
+- Default season seed lives in [backend/season_catalog.py](/D:/gachaAPP/backend/season_catalog.py)
+
 ## Critical Env
 ### Backend
 - `DATABASE_URL`: path or hosted database connection string
