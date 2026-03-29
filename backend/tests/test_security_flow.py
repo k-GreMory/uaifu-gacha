@@ -98,6 +98,26 @@ class SecurityFlowTests(unittest.TestCase):
     def auth_headers(self, user_id: int):
         return {"X-Telegram-Init-Data": build_signed_init_data(user_id)}
 
+    def test_spin_supports_post_requests(self):
+        spin_methods = {
+            method
+            for route in main.app.routes
+            if getattr(route, "path", None) == "/spin"
+            for method in getattr(route, "methods", set())
+        }
+        self.assertIn("POST", spin_methods)
+        self.assertIn("GET", spin_methods)
+
+    def test_premium_spin_supports_post_requests(self):
+        premium_methods = {
+            method
+            for route in main.app.routes
+            if getattr(route, "path", None) == "/premium_spin"
+            for method in getattr(route, "methods", set())
+        }
+        self.assertIn("POST", premium_methods)
+        self.assertIn("GET", premium_methods)
+
     def test_verified_telegram_identity_wins_over_spoofed_query_user(self):
         request = make_request(
             "/user",

@@ -82,11 +82,11 @@ export const claimSeasonTaskRequest = (taskId) => (
 )
 
 export const spinRequest = () => (
-  apiClient.get('/spin')
+  apiClient.post('/spin')
 )
 
 export const premiumSpinRequest = () => (
-  apiClient.get('/premium_spin')
+  apiClient.post('/premium_spin')
 )
 
 export const buyEnergyRequest = () => (

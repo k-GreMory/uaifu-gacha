@@ -79,6 +79,8 @@ function App() {
   const [gameActive, setGameActive] = useState(false)
   const toastTimeoutRef = useRef(null)
   const collectionFetchInFlightRef = useRef(false)
+  const processedReferralRef = useRef(new Set())
+  const dailyClaimInFlightRef = useRef(false)
 
   const triggerHaptic = (type = 'light') => {
     const haptic = window.Telegram?.WebApp?.HapticFeedback
@@ -321,16 +323,21 @@ function App() {
       const startParam = telegramStartParam
       if (startParam.startsWith('ref_')) {
         const refId = parseInt(startParam.replace('ref_', ''), 10)
-        if (refId && refId !== user.id) {
+        if (refId && refId !== user.id && !processedReferralRef.current.has(startParam)) {
+          processedReferralRef.current.add(startParam)
           claimReferral(refId)
             .then(response => showToast(response.data.message))
-            .catch(() => {})
+            .catch((error) => {
+              if (error?.response?.status !== 400) {
+                showToast(getApiErrorMessage(error, 'Не вдалося зарахувати реферал'))
+              }
+            })
         }
       }
     }
 
     void initializeUser()
-  }, [fetchCollection, fetchUserStats, showToast, telegramStartParam, user])
+  }, [fetchCollection, fetchUserStats, getApiErrorMessage, showToast, telegramStartParam, user])
 
   useEffect(() => {
     if (!user) return
@@ -364,20 +371,29 @@ function App() {
   }, [user])
 
   useEffect(() => {
-    if (userStats?.can_claim_daily) {
-      const claim = async () => {
-        try {
-          const response = await claimDailyReward()
-          showToast(response.data.message)
-          updateStats(response.data.user_stats)
-          setTimeout(() => triggerHaptic('success'), 300)
-        } catch (e) {
-          console.error('Failed to claim daily reward', e)
+    if (!userStats?.can_claim_daily || dailyClaimInFlightRef.current) return
+
+    dailyClaimInFlightRef.current = true
+
+    const claim = async () => {
+      try {
+        const response = await claimDailyReward()
+        showToast(response.data.message)
+        updateStats(response.data.user_stats)
+        setTimeout(() => triggerHaptic('success'), 300)
+      } catch (error) {
+        console.error('Failed to claim daily reward', error)
+        const status = error?.response?.status
+        if (status !== 400) {
+          showToast(getApiErrorMessage(error, 'Не вдалося отримати щоденний бонус'))
         }
+      } finally {
+        dailyClaimInFlightRef.current = false
       }
-      claim()
     }
-  }, [userStats?.can_claim_daily, showToast])
+
+    void claim()
+  }, [getApiErrorMessage, showToast, userStats?.can_claim_daily])
 
   const formatTime = (totalSeconds) => {
     const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0')

@@ -94,6 +94,7 @@ async def get_user(current_user: models.User = Depends(get_current_user), db: Se
     return get_user_state(db, current_user)
 
 @app.get("/spin", response_model=SpinResult)
+@app.post("/spin", response_model=SpinResult)
 async def spin(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     # 1. Get/Create user and update energy
     user = current_user
@@ -214,6 +215,7 @@ async def buy_energy(current_user: models.User = Depends(get_current_user), db: 
     }
 
 @app.get("/premium_spin", response_model=SpinResult)
+@app.post("/premium_spin", response_model=SpinResult)
 async def premium_spin(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     user = current_user
     
