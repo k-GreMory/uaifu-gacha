@@ -6,7 +6,10 @@ from sqlalchemy.orm import Session
 
 import models
 from auth import TelegramAuthUser, get_authenticated_telegram_user
+from cards_data import CARDS
 from database import get_db
+
+TOTAL_CARD_COUNT = len(CARDS)
 
 
 def normalize_profile_value(value: Optional[str]) -> Optional[str]:
@@ -39,8 +42,6 @@ def get_user_state(db: Session, user: models.User):
         elapsed = (now - user.last_energy_update).total_seconds()
         next_energy = max(0, int((10 * 60) - elapsed))
 
-    total_cards = db.query(models.Card).count()
-    
     now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
     can_claim = False
     if not user.last_login_date or user.last_login_date.date() < now_naive.date():
@@ -51,7 +52,7 @@ def get_user_state(db: Session, user: models.User):
         "max_energy": user.max_energy,
         "coins": user.coins,
         "next_energy_in_seconds": next_energy,
-        "total_cards": total_cards,
+        "total_cards": TOTAL_CARD_COUNT,
         "pity_counter": user.pity_counter or 0,
         "login_streak": user.login_streak or 0,
         "can_claim_daily": can_claim,
