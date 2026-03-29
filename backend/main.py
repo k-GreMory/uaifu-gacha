@@ -355,6 +355,25 @@ async def get_leaderboard(mode: str = "spins", db: Session = Depends(get_db)):
 
 # --- Referral System ---
 
+def is_referral_eligible_user(db: Session, user: models.User) -> bool:
+    if (user.total_spins or 0) > 0:
+        return False
+
+    has_cards = db.query(models.UserCard.id).filter(
+        models.UserCard.user_id == user.id
+    ).first() is not None
+    has_spin_logs = db.query(models.SpinLog.id).filter(
+        models.SpinLog.user_id == user.id
+    ).first() is not None
+    has_purchases = db.query(models.PurchaseLog.id).filter(
+        models.PurchaseLog.user_id == user.id
+    ).first() is not None
+    has_drone_sessions = db.query(models.DroneGameSession.id).filter(
+        models.DroneGameSession.user_id == user.id
+    ).first() is not None
+
+    return not any((has_cards, has_spin_logs, has_purchases, has_drone_sessions))
+
 @app.get("/referral/link")
 async def get_referral_link(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     user = current_user
@@ -381,7 +400,10 @@ async def claim_referral(ref_id: int, current_user: models.User = Depends(get_cu
     existing = db.query(models.Referral).filter(models.Referral.invited_id == user_id).first()
     if existing:
         raise HTTPException(status_code=400, detail="Реферал вже зареєстровано")
-    
+
+    if not is_referral_eligible_user(db, current_user):
+        raise HTTPException(status_code=400, detail="Реферальний бонус доступний лише новим гравцям")
+
     # Make sure both users exist
     new_user = current_user
     referrer = db.query(models.User).filter(models.User.id == ref_id).first()
@@ -420,9 +442,20 @@ def get_active_season(db: Session) -> Optional[models.Season]:
 
 def ensure_season_exists(db: Session):
     """Auto-create a season if none exists"""
-    season = db.query(models.Season).filter(models.Season.is_active == True).first()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    expired_seasons = db.query(models.Season).filter(
+        models.Season.is_active == True,
+        models.Season.end_date < now,
+    ).all()
+    for expired_season in expired_seasons:
+        expired_season.is_active = False
+    if expired_seasons:
+        db.flush()
+
+    season = db.query(models.Season).filter(models.Season.is_active == True).order_by(
+        models.Season.start_date.desc()
+    ).first()
     if not season:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
         season = models.Season(
             name="Сезон 1: Весна Вайфу 🌸",
             start_date=now,
@@ -446,6 +479,8 @@ def ensure_season_exists(db: Session):
         db.add_all(tasks)
         db.commit()
         db.refresh(season)
+    elif expired_seasons:
+        db.commit()
     return season
 
 @app.get("/season")
@@ -510,7 +545,12 @@ async def claim_season_reward(task_id: int, current_user: models.User = Depends(
     task = db.query(models.SeasonTask).filter(models.SeasonTask.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Задача не знайдена")
-    
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    season = task.season
+    if not season or not season.is_active or season.start_date > now or season.end_date < now:
+        raise HTTPException(status_code=400, detail="Нагорода цього сезону недоступна")
+
     user = current_user
     user_id = current_user.id
     unique_cards = db.query(func.count(models.UserCard.id)).filter(models.UserCard.user_id == user_id).scalar() or 0

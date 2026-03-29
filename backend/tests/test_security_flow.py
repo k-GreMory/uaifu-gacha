@@ -86,6 +86,8 @@ class SecurityFlowTests(unittest.TestCase):
         with SessionLocal() as db:
             db.query(models.DroneGameSession).delete()
             db.query(models.UserSeasonProgress).delete()
+            db.query(models.SeasonTask).delete()
+            db.query(models.Season).delete()
             db.query(models.Referral).delete()
             db.query(models.PurchaseLog).delete()
             db.query(models.SpinLog).delete()
@@ -229,6 +231,103 @@ class SecurityFlowTests(unittest.TestCase):
 
         self.assertEqual(suspicious_score.exception.status_code, 400)
         self.assertEqual(suspicious_score.exception.detail, "Suspicious score rejected")
+
+    def test_existing_player_cannot_claim_referral_late(self):
+        with SessionLocal() as db:
+            referrer = main.get_or_create_user(db, 40404, first_name="Referrer")
+            invited = main.get_or_create_user(db, 40405, first_name="Existing")
+            invited.total_spins = 3
+            db.commit()
+
+            with self.assertRaises(HTTPException) as late_claim:
+                asyncio.run(
+                    main.claim_referral(
+                        ref_id=referrer.id,
+                        current_user=invited,
+                        db=db,
+                    )
+                )
+
+        self.assertEqual(late_claim.exception.status_code, 400)
+        self.assertEqual(late_claim.exception.detail, "Реферальний бонус доступний лише новим гравцям")
+
+    def test_new_player_can_claim_referral_after_daily_bonus_state(self):
+        with SessionLocal() as db:
+            referrer = main.get_or_create_user(db, 50505, first_name="Referrer")
+            invited = main.get_or_create_user(db, 50506, first_name="Fresh")
+            invited.last_login_date = utcnow_naive()
+            invited.login_streak = 1
+            invited.coins = 250
+            db.commit()
+
+            response = asyncio.run(
+                main.claim_referral(
+                    ref_id=referrer.id,
+                    current_user=invited,
+                    db=db,
+                )
+            )
+            referral = db.query(models.Referral).filter(models.Referral.invited_id == invited.id).first()
+
+        self.assertTrue(response["success"])
+        self.assertIsNotNone(referral)
+
+    def test_ensure_season_exists_replaces_expired_active_season(self):
+        with SessionLocal() as db:
+            expired = models.Season(
+                name="Old season",
+                start_date=utcnow_naive() - timedelta(days=40),
+                end_date=utcnow_naive() - timedelta(days=10),
+                is_active=True,
+            )
+            db.add(expired)
+            db.commit()
+
+            season = main.ensure_season_exists(db)
+            db.refresh(expired)
+            active = main.get_active_season(db)
+
+        self.assertNotEqual(season.id, expired.id)
+        self.assertFalse(expired.is_active)
+        self.assertIsNotNone(active)
+        self.assertEqual(active.id, season.id)
+
+    def test_cannot_claim_reward_from_inactive_season_task(self):
+        with SessionLocal() as db:
+            user = main.get_or_create_user(db, 60606, first_name="SeasonTester")
+            user.total_spins = 20
+
+            expired = models.Season(
+                name="Archived season",
+                start_date=utcnow_naive() - timedelta(days=60),
+                end_date=utcnow_naive() - timedelta(days=30),
+                is_active=False,
+            )
+            db.add(expired)
+            db.flush()
+
+            task = models.SeasonTask(
+                season_id=expired.id,
+                title="Old spins",
+                task_type="spins",
+                target=1,
+                reward_coins=100,
+                reward_energy=0,
+            )
+            db.add(task)
+            db.commit()
+
+            with self.assertRaises(HTTPException) as claim_error:
+                asyncio.run(
+                    main.claim_season_reward(
+                        task_id=task.id,
+                        current_user=user,
+                        db=db,
+                    )
+                )
+
+        self.assertEqual(claim_error.exception.status_code, 400)
+        self.assertEqual(claim_error.exception.detail, "Нагорода цього сезону недоступна")
 
 
 if __name__ == "__main__":

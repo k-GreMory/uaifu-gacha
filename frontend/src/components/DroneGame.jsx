@@ -5,6 +5,7 @@ import { claimDroneReward, startDroneGameRequest } from '../lib/api'
 const DRONE_TYPES = ['RED', 'STEALTH']
 const OBSTACLE_TYPES = ['LIGHT', 'CONE']
 const INITIAL_BIRD = { x: 50, y: 250, velocity: 0, width: 44, height: 44 }
+const MAX_DRONE_REWARD_COINS = 50
 
 const getRandomIntInclusive = (min, max) => (
   Math.floor(Math.random() * (max - min + 1)) + min
@@ -25,6 +26,7 @@ function DroneGame({ user, onClose, triggerHaptic }) {
   const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem('drone_highscore') || '0', 10))
   const [rewardClaimed, setRewardClaimed] = useState(false)
   const [startingGame, setStartingGame] = useState(false)
+  const [startError, setStartError] = useState('')
 
   const GRAVITY = 0.2
   const JUMP = -4.5
@@ -65,6 +67,7 @@ function DroneGame({ user, onClose, triggerHaptic }) {
     if (startingGame) return
 
     setStartingGame(true)
+    setStartError('')
     gameStateRef.current = 'STARTING'
     setGameState('STARTING')
 
@@ -74,6 +77,12 @@ function DroneGame({ user, onClose, triggerHaptic }) {
     } catch (error) {
       console.error('Start game session error', error)
       sessionTokenRef.current = null
+      setStartError('Не вдалося підключити гру. Спробуй ще раз.')
+      triggerHaptic('error')
+      gameStateRef.current = 'START'
+      setGameState('START')
+      setStartingGame(false)
+      return
     }
 
     birdRef.current = { ...INITIAL_BIRD }
@@ -323,6 +332,12 @@ function DroneGame({ user, onClose, triggerHaptic }) {
                   : <>Натискай щоб летіти.<br />Монети за кожні 5 очок.</>}
               </div>
 
+              {startError && (
+                <div className="mb-4 rounded-xl border border-[#f43f5e]/30 bg-[#f43f5e]/10 px-4 py-2 text-xs font-medium text-[#fda4af]">
+                  {startError}
+                </div>
+              )}
+
               <div className={`px-10 py-3 rounded-xl text-[#0a0a0a] font-semibold text-sm transition-all ${
                 gameState === 'STARTING' ? 'bg-[#a3a3a3] cursor-not-allowed' : 'bg-[#ededed] active:scale-95'
               }`}>
@@ -345,7 +360,7 @@ function DroneGame({ user, onClose, triggerHaptic }) {
               <div className="mb-8 text-sm font-medium text-[#ededed]">
                 {score >= 5 ? (
                   <div className="flex items-center gap-2 bg-[#34d399]/10 px-4 py-2 rounded-xl text-[#34d399]">
-                    Нагорода: +{Math.floor(score / 5)} 🪙
+                    Нагорода: +{Math.min(Math.floor(score / 5), MAX_DRONE_REWARD_COINS)} 🪙
                   </div>
                 ) : (
                   <span className="text-[#a3a3a3]">Збери 5 очок для нагороди</span>
