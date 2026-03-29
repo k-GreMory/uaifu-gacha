@@ -1,17 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --header-p: clamp(0.75rem, 3vh, 1.25rem);
   --section-gap: clamp(0.5rem, 2vh, 1rem);
-  --glass-b: rgba(255, 255, 255, 0.05);
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: #0f172a;
+  background-color: #0a0a0a; /* Simple flat dark background */
+  color: #ededed;
   min-height: 100vh;
   width: 100%;
 }
@@ -20,31 +20,25 @@ body {
   width: 100%;
   min-height: 100vh;
 }
+
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pop-in {
-  0% { transform: scale(0.9); opacity: 0; }
-  70% { transform: scale(1.05); }
+  0% { transform: scale(0.95); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 
-@keyframes bounce-slow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}
-
-.animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-.animate-fade-up { animation: fade-up 0.5s ease-out forwards; }
-.animate-pop-in { animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-.animate-bounce-slow { animation: bounce-slow 2s infinite ease-in-out; }
+.animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+.animate-fade-up { animation: fade-up 0.3s ease-out forwards; }
+.animate-pop-in { animation: pop-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 
 /* 3D Flip Utilities */
 .perspective-1000 {
@@ -90,20 +84,19 @@ body {
   position: absolute;
   width: 60px;
   height: 60px;
-  background: white;
-  border: 4px solid #f1f5f9;
+  background: #171717;
+  border: 1px solid #333;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   backface-visibility: visible;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
 }
 
 .face span {
   width: 8px;
   height: 8px;
-  background: #1e293b;
+  background: #a3a3a3;
   border-radius: 50%;
   display: block;
 }
@@ -117,180 +110,45 @@ body {
 .bottom { transform: rotateX(-90deg) translateZ(30px); }
 
 /* Dot patterns for each face */
-.front  { flex-direction: column; } /* 1 dot */
-.back   { flex-wrap: wrap; padding: 6px; gap: 8px; } /* 6 dots */
-.right  { flex-wrap: wrap; padding: 10px; gap: 15px; } /* 3 dots info: use grid for better control if needed */
-.left   { flex-wrap: wrap; padding: 10px; gap: 15px; } /* 4 dots */
-.top    { flex-wrap: wrap; padding: 12px; gap: 8px; } /* 2 dots */
-.bottom { flex-wrap: wrap; padding: 6px; gap: 10px; } /* 5 dots */
+.front  { flex-direction: column; }
+.back   { flex-wrap: wrap; padding: 6px; gap: 8px; }
+.right  { flex-wrap: wrap; padding: 10px; gap: 15px; }
+.left   { flex-wrap: wrap; padding: 10px; gap: 15px; }
+.top    { flex-wrap: wrap; padding: 12px; gap: 8px; }
+.bottom { flex-wrap: wrap; padding: 6px; gap: 10px; }
 
-/* Specific face dot layouts */
-.face.front span:nth-child(n) { width: 12px; height: 12px; background: #e11d48; } /* Classy red 1 dot */
+.face.left { justify-content: space-evenly; }
+.face.right { justify-content: space-evenly; }
+.face.top { justify-content: space-evenly; }
 
-.face.back { display: grid; grid-template-columns: 1fr 1fr; padding: 8px; gap: 6px; }
-.face.left { display: grid; grid-template-columns: 1fr 1fr; padding: 12px; gap: 12px; }
-.face.top { display: flex; flex-direction: column; justify-content: space-around; padding: 8px; }
-.face.right { display: grid; grid-template-columns: 1fr; justify-items: center; align-content: space-around; padding: 6px; }
-.face.bottom { display: grid; grid-template-columns: 1fr 1fr; padding: 8px; gap: 6px; }
-/* Reveal Decorations */
-.shine-effect {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.4) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  transform: skewX(-25deg);
-  z-index: 10;
-  pointer-events: none;
+.face.front span:nth-child(n) { width: 12px; height: 12px; background: #e5e5e5; }
+
+/* Flat UI Cards */
+.flat-card {
+  background-color: #171717; /* Slate-like neutral dark gray */
+  border: 1px solid #262626;
 }
 
-.animate-shine {
-  animation: shine 1.5s ease-out forwards;
+.solid-btn {
+  background-color: #ededed;
+  color: #0a0a0a;
+  transition: opacity 0.2s ease, transform 0.1s ease;
 }
 
-@keyframes shine {
-  0% { left: -100%; }
-  100% { left: 150%; }
+.solid-btn:active {
+  transform: scale(0.97);
 }
 
-.rarity-glow {
-  position: absolute;
-  inset: -8px;
-  border-radius: 2.8rem;
-  z-index: -1;
-  opacity: 0.6;
-  filter: blur(15px);
-  animation: pulse-glow 2s infinite ease-in-out;
+.solid-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
-
-@keyframes pulse-glow {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.05); opacity: 0.8; }
-}
-
-/* Legendary specific spinning glow */
-.legendary-aura {
-  position: absolute;
-  inset: -15px;
-  border-radius: 3rem;
-  z-index: -2;
-  background: conic-gradient(
-    from 0deg,
-    #fbbf24,
-    #e879f9,
-    #22d3ee,
-    #fbbf24
-  );
-  animation: rotate-aura 4s linear infinite;
-  opacity: 0.4;
-  filter: blur(20px);
-}
-
-@keyframes rotate-aura {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* --- UAIFU PREMIUM DESIGN SYSTEM --- */
-
-.glass-card {
-  background: rgba(30, 41, 59, 0.5);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-}
-
-.premium-border {
-  border: 1px solid transparent;
-  background: linear-gradient(#1e293b, #1e293b) padding-box,
-              linear-gradient(135deg, #22d3ee, #818cf8, #fbbf24) border-box;
-}
-
-.shimmer-btn {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, #0ea5e9, #2563eb);
-  transition: all 0.3s ease;
-}
-
-.shimmer-btn::after {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.1) 40%,
-    rgba(255, 255, 255, 0.4) 50%,
-    rgba(255, 255, 255, 0.1) 60%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  transform: rotate(30deg);
-  animation: shimmer-swipe 3s infinite;
-}
-
-@keyframes shimmer-swipe {
-  0% { transform: translate(-100%, -100%) rotate(30deg); }
-  20%, 100% { transform: translate(100%, 100%) rotate(30deg); }
-}
-
-.holo-card {
-  position: relative;
-  overflow: hidden;
-}
-
-.holo-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.2) 20%,
-    rgba(129, 140, 248, 0.3) 40%,
-    rgba(251, 191, 36, 0.2) 60%,
-    rgba(255, 255, 255, 0.1) 80%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  background-size: 200% 200%;
-  mix-blend-mode: overlay;
-  z-index: 5;
-  pointer-events: none;
-  animation: holo-slide 6s ease infinite;
-}
-
-@keyframes holo-slide {
-  0%, 100% { background-position: 0% 0%; }
-  50% { background-position: 100% 100%; }
-}
-
-.progress-glow {
-  box-shadow: 0 0 10px rgba(34, 211, 238, 0.5), inset 0 0 5px rgba(34, 211, 238, 0.2);
-}
-
-.rank-gold { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
-.rank-silver { color: #cbd5e1; text-shadow: 0 0 10px rgba(203, 213, 225, 0.5); }
-.rank-bronze { color: #d97706; text-shadow: 0 0 10px rgba(217, 119, 6, 0.5); }
 
 /* Mobile Optimization Utilities */
 .mask-right {
   mask-image: linear-gradient(to right, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
-}
-
-.mask-both {
-  mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
 }
 
 @media (max-width: 640px) {

@@ -464,23 +464,23 @@ function App() {
 
   const getRarityColor = (rarity) => {
     switch (rarity) {
-      case 'Mythic': return 'text-rose-500 border-rose-600 shadow-[0_0_15px_rgba(225,29,72,0.6)]'
-      case 'Legendary': return 'text-yellow-400 border-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.4)]'
-      case 'Epic': return 'text-fuchsia-400 border-fuchsia-500 shadow-fuchsia-500/30'
-      case 'Rare': return 'text-blue-400 border-blue-500 shadow-blue-500/20'
-      case 'UnCommon': return 'text-emerald-400 border-emerald-500 shadow-emerald-500/10'
-      default: return 'text-slate-300 border-slate-600 shadow-slate-500/10'
+      case 'Mythic': return 'text-[#f43f5e] border-[#f43f5e]'
+      case 'Legendary': return 'text-[#fbbf24] border-[#fbbf24]'
+      case 'Epic': return 'text-[#c084fc] border-[#c084fc]'
+      case 'Rare': return 'text-[#60a5fa] border-[#60a5fa]'
+      case 'UnCommon': return 'text-[#34d399] border-[#34d399]'
+      default: return 'text-[#a3a3a3] border-[#a3a3a3]'
     }
   }
 
   if (!user) {
     if (isSessionBootstrapping) {
       return (
-        <div className="flex min-h-screen w-full items-center justify-center bg-[#0f172a] px-6 text-white">
-          <div className="max-w-sm rounded-[2rem] border border-slate-700/60 bg-slate-900/70 p-6 text-center shadow-2xl">
-            <div className="mb-4 mx-auto h-12 w-12 rounded-full border-4 border-slate-700 border-t-cyan-400 animate-spin" />
-            <h1 className="mb-2 text-lg font-black uppercase tracking-tight">Підключаємо профіль</h1>
-            <p className="text-sm text-slate-300">
+        <div className="flex min-h-screen w-full items-center justify-center bg-[#0a0a0a] px-6 text-[#ededed]">
+          <div className="max-w-sm rounded-2xl border border-[#262626] bg-[#171717] p-6 text-center">
+            <div className="mb-4 mx-auto h-8 w-8 rounded-full border-2 border-[#333] border-t-[#ededed] animate-spin" />
+            <h1 className="mb-2 text-lg font-semibold">Підключаємо профіль</h1>
+            <p className="text-sm text-[#a3a3a3]">
               Завантажуємо Telegram-сесію та синхронізуємо твої дані.
             </p>
           </div>
@@ -489,12 +489,12 @@ function App() {
     }
 
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-[#0f172a] px-6 text-white">
-        <div className="max-w-sm rounded-[2rem] border border-slate-700/60 bg-slate-900/70 p-6 text-center shadow-2xl">
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#0a0a0a] px-6 text-[#ededed]">
+        <div className="max-w-sm rounded-2xl border border-[#262626] bg-[#171717] p-6 text-center">
           <div className="mb-3 text-4xl">🔒</div>
-          <h1 className="mb-2 text-lg font-black uppercase tracking-tight">Telegram Session Needed</h1>
-          <p className="text-sm text-slate-300">
-            Перевідкрий цю мініапку прямо в Telegram, щоб підтягнути твій профіль і колекцію.
+          <h1 className="mb-2 text-lg font-semibold">Потрібна Telegram сесія</h1>
+          <p className="text-sm text-[#a3a3a3]">
+            Перевідкрий цю апку в Telegram, щоб підтягнути профіль.
           </p>
         </div>
       </div>
@@ -583,14 +583,10 @@ function App() {
   }
 
   return (
-    <div className="uaifu-scene relative flex min-h-screen w-full flex-col items-center overflow-x-hidden p-2.5 text-white sm:p-5 font-sans select-none">
-      <div className="uaifu-grid" />
-      <div className="ambient-orb ambient-orb--a" />
-      <div className="ambient-orb ambient-orb--b" />
-      <div className="ambient-orb ambient-orb--c" />
+    <div className="relative flex min-h-screen w-full flex-col items-center overflow-x-hidden p-2.5 text-[#ededed] bg-[#0a0a0a] sm:p-5 font-sans select-none">
       <ToastBanner toast={toast} />
 
-      <div className="app-frame mx-auto flex w-full max-w-lg flex-1 flex-col items-center rounded-[1.7rem] px-2.5 pb-5 pt-4 sm:rounded-[2rem] sm:px-4 sm:pt-5">
+      <div className="app-frame mx-auto flex w-full max-w-lg flex-1 flex-col items-center rounded-2xl px-2.5 pb-5 pt-4 sm:px-4 sm:pt-5 bg-[#0a0a0a]">
         <AppHeader
           activeTab={activeTab}
           onTabChange={changeTab}

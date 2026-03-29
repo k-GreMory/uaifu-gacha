@@ -45,14 +45,14 @@ export function ToastBanner({ toast }) {
 
   return (
     <div className="fixed top-5 left-1/2 -translate-x-1/2 min-w-[280px] z-[100] animate-fade-up px-4">
-      <div className="rounded-[1.4rem] border border-cyan-400/20 bg-slate-950/88 px-4 py-3 text-white shadow-[0_18px_50px_rgba(2,8,23,0.65)] backdrop-blur-xl">
+      <div className="rounded-2xl border border-[#262626] bg-[#171717] px-4 py-3 text-[#ededed] shadow-md">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-500/10 text-cyan-300">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#262626] text-[#60a5fa]">
             ⚠️
           </div>
           <div className="min-w-0">
-            <div className="text-[9px] font-black uppercase tracking-[0.28em] text-cyan-300/70">System Notice</div>
-            <div className="text-sm font-black leading-tight text-slate-100">{toast}</div>
+            <div className="text-[10px] font-semibold text-[#a3a3a3]">System Notice</div>
+            <div className="text-sm font-medium leading-tight">{toast}</div>
           </div>
         </div>
       </div>
@@ -64,24 +64,23 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
   const activeTabMeta = TABS.find(tab => tab.id === activeTab) || TABS[0]
 
   return (
-    <header className="mb-2.5 flex w-full flex-col gap-2.5 sm:mb-6 sm:gap-4">
+    <header className="mb-4 flex w-full flex-col gap-3 sm:mb-6 sm:gap-4">
       <div className="flex items-center justify-between px-1">
         <div className="flex flex-col">
-          <h1 className="text-xl font-black uppercase tracking-tighter sm:text-2xl italic">
-            UAIFU <span className="text-cyan-400">GACHA</span>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            UAIFU <span className="text-[#60a5fa] font-semibold">GACHA</span>
           </h1>
-          <div className="h-0.5 w-8 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_1px_6px_rgba(34,211,238,0.6)]" />
         </div>
 
-        <div className="rounded-full border border-slate-700/60 bg-slate-900/45 px-2.5 py-1 sm:px-3 sm:py-1.5 shadow-[0_8px_16px_rgba(2,8,23,0.2)] backdrop-blur-md">
-          <div className="text-[8px] font-black uppercase tracking-[0.16em] text-cyan-300 sm:text-[9px]">
+        <div className="rounded-full border border-[#262626] bg-[#171717] px-3 py-1.5 shadow-sm">
+          <div className="text-xs font-semibold text-[#60a5fa]">
             {activeTabMeta.label}
           </div>
         </div>
       </div>
 
-      <div className="rounded-[1.2rem] border border-slate-700/70 bg-slate-900/45 p-1 shadow-[0_12px_28px_rgba(2,8,23,0.25)] backdrop-blur-xl sm:p-1.5 sm:rounded-[1.5rem]">
-        <div className="grid grid-cols-6 gap-1 sm:gap-1.5">
+      <div className="rounded-2xl border border-[#262626] bg-[#171717] p-1.5 shadow-sm">
+        <div className="grid grid-cols-6 gap-1">
           {TABS.map(({ id, icon, label }) => (
             <button
               key={id}
@@ -91,21 +90,18 @@ export function AppHeader({ activeTab, onTabChange, triggerHaptic }) {
               }}
               title={label}
               aria-label={label}
-              className={`group relative flex min-w-0 flex-col items-center justify-center rounded-[0.9rem] border px-1 py-1.5 text-sm font-black transition-all duration-300 active:scale-90 sm:py-2 sm:rounded-[1rem] ${
+              className={`group relative flex min-w-0 flex-col items-center justify-center rounded-xl px-1 py-2 text-sm transition-all duration-200 active:scale-95 ${
                 activeTab === id
-                  ? 'border-cyan-400/40 bg-gradient-to-b from-cyan-500/20 to-blue-500/15 text-cyan-200 shadow-[0_8px_18px_rgba(34,211,238,0.2)]'
-                  : 'border-transparent bg-transparent text-slate-500 hover:text-slate-300'
+                  ? 'bg-[#262626] text-[#ededed]'
+                  : 'bg-transparent text-[#737373] hover:text-[#a3a3a3] hover:bg-[#262626]/50'
               }`}
             >
-              <span className={`transition-transform duration-300 ${activeTab === id ? 'scale-110' : 'group-hover:scale-105'}`}>
+              <span className={`transition-transform duration-200 ${activeTab === id ? 'scale-110' : ''}`}>
                 {icon}
               </span>
-              <span className={`mt-0.5 hidden text-[6.5px] uppercase tracking-[0.14em] sm:block ${activeTab === id ? 'text-cyan-100 font-black' : 'text-slate-600'}`}>
+              <span className={`mt-1 hidden text-[10px] font-medium sm:block ${activeTab === id ? 'text-[#ededed]' : 'text-[#737373]'}`}>
                 {label}
               </span>
-              {activeTab === id && (
-                <div className="absolute -bottom-0.5 h-0.5 w-3 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)] sm:h-1 sm:w-4" />
-              )}
             </button>
           ))}
         </div>
@@ -119,44 +115,44 @@ export function TopStatsBar({ collection, fetchingCollection, formatTime, onOpen
   const energyPercent = Math.round((userStats.energy / Math.max(1, userStats.max_energy)) * 100)
 
   return (
-    <div className="w-full max-w-md flex flex-col gap-2 mb-2 sm:gap-2.5 sm:mb-3">
-      <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
-        <div className="glass-card rounded-[1.2rem] p-2.5 transition-all hover:border-cyan-400/30 sm:rounded-[1.4rem] sm:p-3">
+    <div className="w-full max-w-md flex flex-col gap-2.5 mb-3 sm:mb-4">
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="flat-card rounded-2xl p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-col min-w-0">
-              <span className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500 sm:text-[9px]">Енергія</span>
-              <span className="mt-0.5 truncate text-[9px] font-bold text-slate-400 sm:text-[10px]">
+              <span className="text-[10px] font-semibold text-[#737373]">Енергія</span>
+              <span className="mt-0.5 truncate text-xs font-medium text-[#d4d4d4]">
                 {isEnergyFull ? 'Готово' : formatTime(userStats.next_energy_in_seconds)}
               </span>
             </div>
-            <span className={`text-xs font-black whitespace-nowrap sm:text-sm ${userStats.energy === 0 ? 'text-red-400' : 'text-cyan-300'}`}>
+            <span className={`text-sm font-semibold whitespace-nowrap ${userStats.energy === 0 ? 'text-[#f43f5e]' : 'text-[#60a5fa]'}`}>
               {userStats.energy}/{userStats.max_energy}
             </span>
           </div>
-          <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-800/80 sm:h-1.5 sm:mt-2.5">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#262626]">
             <div
-              className={`h-full progress-glow rounded-full transition-all duration-500 ${userStats.energy === 0 ? 'bg-red-500' : 'bg-cyan-400'}`}
+              className={`h-full rounded-full transition-all duration-500 ${userStats.energy === 0 ? 'bg-[#f43f5e]' : 'bg-[#60a5fa]'}`}
               style={{ width: `${energyPercent}%` }}
             />
           </div>
         </div>
 
-        <div className="glass-card rounded-[1.2rem] p-2.5 transition-all hover:border-yellow-400/30 sm:rounded-[1.4rem] sm:p-3">
+        <div className="flat-card rounded-2xl p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-col min-w-0">
-              <span className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500 sm:text-[9px]">Баланс</span>
-              <span className="mt-0.5 truncate text-[9px] font-bold text-slate-400 sm:text-[10px]">Монети UAIFU</span>
+              <span className="text-[10px] font-semibold text-[#737373]">Баланс</span>
+              <span className="mt-0.5 truncate text-xs font-medium text-[#d4d4d4]">Монети UAIFU</span>
             </div>
             <div className="flex items-center gap-1 min-w-0">
-              <span className={`font-black whitespace-nowrap text-yellow-300 leading-none ${userStats.coins > 99999 ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
+              <span className={`font-semibold whitespace-nowrap text-[#fbbf24] leading-none ${userStats.coins > 99999 ? 'text-xs' : 'text-sm'}`}>
                 {userStats.coins.toLocaleString()}
               </span>
-              <span className="text-[10px] shrink-0">🪙</span>
+              <span className="text-xs shrink-0">🪙</span>
             </div>
           </div>
-          <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-800/80 sm:h-1.5 sm:mt-2.5">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#262626]">
             <div
-              className="h-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.5)] rounded-full transition-all duration-500"
+              className="h-full bg-[#fbbf24] rounded-full transition-all duration-500"
               style={{ width: `${Math.min(100, (userStats.coins / 50000) * 100)}%` }}
             />
           </div>
