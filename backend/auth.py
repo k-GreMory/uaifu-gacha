@@ -96,18 +96,20 @@ def get_authenticated_telegram_user(request: Request) -> TelegramAuthUser:
     if not allow_dev_auth:
         raise HTTPException(status_code=401, detail="Missing Telegram auth data")
 
-    dev_user_id = (
-        request.headers.get("X-Dev-User-Id")
-        or request.query_params.get("user_id")
-    )
+    # Only read dev-auth identity from request headers, never from query
+    # params. Query params are easy to inadvertently leak through logs,
+    # Referer headers, analytics, and shared links, which would make it
+    # trivial to impersonate another user if dev auth were ever left
+    # enabled in a shared environment.
+    dev_user_id = request.headers.get("X-Dev-User-Id")
     if not dev_user_id:
         raise HTTPException(status_code=401, detail="Missing development user_id")
 
     try:
         return TelegramAuthUser(
             id=int(dev_user_id),
-            username=request.headers.get("X-Dev-Username") or request.query_params.get("username"),
-            first_name=request.headers.get("X-Dev-First-Name") or request.query_params.get("first_name"),
+            username=request.headers.get("X-Dev-Username"),
+            first_name=request.headers.get("X-Dev-First-Name"),
             source="dev",
         )
     except ValueError as exc:

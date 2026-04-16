@@ -1,3 +1,5 @@
+import hmac
+
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
@@ -11,22 +13,29 @@ class AdminAuth(AuthenticationBackend):
         self.admin_secret = admin_secret
 
     async def login(self, request: Request) -> bool:
+        if not self.admin_secret:
+            return False
         form = await request.form()
-        secret = form.get("username")
-        if self.admin_secret and secret == self.admin_secret:
-            request.session.update({"token": secret})
-            return True
-        return False
+        secret = form.get("username") or ""
+        # Constant-time comparison to prevent timing attacks.
+        if not hmac.compare_digest(str(secret), self.admin_secret):
+            return False
+        # Do not store the admin secret itself in the session: Starlette's
+        # SessionMiddleware only signs cookies, it does not encrypt them, so
+        # the session payload would leak the admin secret to anyone who can
+        # read the cookie. Storing an opaque marker is sufficient because
+        # only the server can produce a valid signed session cookie.
+        request.session.update({"authenticated": True})
+        return True
 
     async def logout(self, request: Request) -> bool:
         request.session.clear()
         return True
 
     async def authenticate(self, request: Request) -> bool:
-        token = request.session.get("token")
-        if not self.admin_secret or not token or token != self.admin_secret:
+        if not self.admin_secret:
             return False
-        return True
+        return bool(request.session.get("authenticated"))
 
 
 class UserAdmin(ModelView, model=models.User):

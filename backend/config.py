@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Optional
 
 LOCAL_FRONTEND_ORIGINS = [
@@ -86,7 +87,16 @@ def is_admin_enabled(admin_secret: Optional[str] = None) -> bool:
 
 
 def is_dev_auth_enabled() -> bool:
-    return parse_bool(os.getenv("ALLOW_DEV_AUTH"), default=is_local_environment())
+    # Fail closed: dev auth (which lets any caller claim to be any Telegram
+    # user via a header) must be opted into explicitly. Previously this
+    # defaulted to `is_local_environment()`, which relies on a heuristic
+    # over environment variables. On any host that isn't one of the
+    # recognised PaaS providers (Railway, Vercel, Render, Fly, etc.) the
+    # heuristic would flag the deployment as "local" and silently enable
+    # dev auth, letting anyone impersonate any user. A missing env var
+    # is now treated as "disabled"; set ALLOW_DEV_AUTH=true explicitly in
+    # local development instead.
+    return parse_bool(os.getenv("ALLOW_DEV_AUTH"), default=False)
 
 
 def get_cors_allowed_origins() -> list[str]:
@@ -106,7 +116,18 @@ def get_cors_allowed_origins() -> list[str]:
 
 def get_cors_allowed_origin_regex() -> Optional[str]:
     regex = os.getenv("CORS_ALLOW_ORIGIN_REGEX", "").strip()
-    return regex or None
+    if not regex:
+        return None
+    # Validate upfront so that a malformed regex fails loudly at startup
+    # rather than silently matching nothing (or worse, matching too much)
+    # at request time.
+    try:
+        re.compile(regex)
+    except re.error as exc:
+        raise RuntimeError(
+            f"Invalid CORS_ALLOW_ORIGIN_REGEX {regex!r}: {exc}"
+        ) from exc
+    return regex
 
 
 def get_app_version() -> str:
@@ -145,8 +166,10 @@ def validate_runtime_configuration() -> dict[str, object]:
         errors.append("ADMIN_SECRET is required when admin is enabled.")
 
     if non_local and not cors_origins and not cors_origin_regex:
-        warnings.append(
-            "No CORS whitelist configured. Set FRONTEND_URL, FRONTEND_URLS, CORS_ALLOW_ORIGINS, or CORS_ALLOW_ORIGIN_REGEX."
+        errors.append(
+            "No CORS whitelist configured. Set FRONTEND_URL, FRONTEND_URLS, "
+            "CORS_ALLOW_ORIGINS, or CORS_ALLOW_ORIGIN_REGEX. Refusing to fall "
+            "back to an open allow-list in a non-local environment."
         )
 
     for warning in warnings:

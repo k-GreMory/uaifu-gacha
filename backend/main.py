@@ -75,8 +75,11 @@ def create_app() -> FastAPI:
     admin_enabled = runtime_config["admin_enabled"]
     cors_allow_origins = runtime_config["cors_origins"]
     cors_allow_origin_regex = runtime_config["cors_origin_regex"]
-    if not cors_allow_origins and not cors_allow_origin_regex:
-        cors_allow_origins = ["*"]
+    # When no explicit whitelist is configured we intentionally leave the
+    # list empty instead of falling back to "*". Allowing every origin is
+    # risky (and in production `validate_runtime_configuration` has already
+    # warned about it). Local development still works because
+    # get_cors_allowed_origins() returns LOCAL_FRONTEND_ORIGINS as a default.
 
     @asynccontextmanager
     async def lifespan(app_instance: FastAPI):
