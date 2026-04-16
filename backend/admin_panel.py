@@ -1,8 +1,40 @@
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
+from wtforms.validators import AnyOf, DataRequired, InputRequired, Length, NumberRange
 
 import models
+
+
+ALLOWED_SEASON_TASK_TYPES = ("spins", "unique_cards", "premium_spins")
+
+
+def _non_negative(message: str = "Значення не може бути від'ємним"):
+    return [NumberRange(min=0, message=message)]
+
+
+def _positive(message: str = "Значення має бути більше нуля"):
+    return [NumberRange(min=1, message=message)]
+
+
+def _required_text(max_length: int = 255, message: str = "Поле обов'язкове"):
+    validators = [DataRequired(message=message)]
+    if max_length:
+        validators.append(Length(max=max_length))
+    return validators
+
+
+def _required_task_type():
+    return [
+        DataRequired(message="Вкажіть тип завдання"),
+        AnyOf(
+            list(ALLOWED_SEASON_TASK_TYPES),
+            message=(
+                "Невідомий тип завдання. Дозволені значення: "
+                + ", ".join(ALLOWED_SEASON_TASK_TYPES)
+            ),
+        ),
+    ]
 
 
 class AdminAuth(AuthenticationBackend):
@@ -92,6 +124,68 @@ class GameBalanceConfigAdmin(ModelView, model=models.GameBalanceConfig):
     ]
     search_fields = ["name"]
     form_excluded_columns = ["created_at", "updated_at"]
+    form_args = {
+        "name": {"validators": _required_text(message="Назва конфігурації обов'язкова")},
+        "daily_reward_base_coins": {"validators": _non_negative()},
+        "daily_reward_energy_bonus": {"validators": _non_negative()},
+        "daily_reward_max_coins": {"validators": _non_negative()},
+        "daily_reward_streak_step_coins": {"validators": _non_negative()},
+        "drone_score_per_coin": {"validators": _positive()},
+        "energy_purchase_amount": {"validators": _positive()},
+        "energy_purchase_cost": {"validators": _non_negative()},
+        "premium_spin_cost": {"validators": _non_negative()},
+        "pity_threshold": {
+            "validators": _positive(
+                message="Pity threshold має бути більше нуля, інакше логіка піті ламається"
+            )
+        },
+        "premium_rare_chance": {"validators": _non_negative()},
+        "premium_epic_chance": {"validators": _non_negative()},
+        "premium_legendary_chance": {"validators": _non_negative()},
+        "premium_mythic_chance": {"validators": _non_negative()},
+        "pity_legendary_chance": {"validators": _non_negative()},
+        "pity_mythic_chance": {"validators": _non_negative()},
+        "referrer_reward_coins": {"validators": _non_negative()},
+        "referrer_reward_energy": {"validators": _non_negative()},
+        "new_user_reward_coins": {"validators": _non_negative()},
+        "new_user_reward_energy": {"validators": _non_negative()},
+        "standard_duplicate_common": {"validators": _non_negative()},
+        "standard_duplicate_uncommon": {"validators": _non_negative()},
+        "standard_duplicate_rare": {"validators": _non_negative()},
+        "standard_duplicate_epic": {"validators": _non_negative()},
+        "standard_duplicate_legendary": {"validators": _non_negative()},
+        "standard_duplicate_mythic": {"validators": _non_negative()},
+        "sell_duplicate_common": {"validators": _non_negative()},
+        "sell_duplicate_uncommon": {"validators": _non_negative()},
+        "sell_duplicate_rare": {"validators": _non_negative()},
+        "sell_duplicate_epic": {"validators": _non_negative()},
+        "sell_duplicate_legendary": {"validators": _non_negative()},
+        "sell_duplicate_mythic": {"validators": _non_negative()},
+    }
+
+    async def on_model_change(self, data, model, is_created, request) -> None:
+        premium_total = sum(
+            int(data.get(field, 0) or 0)
+            for field in (
+                "premium_rare_chance",
+                "premium_epic_chance",
+                "premium_legendary_chance",
+                "premium_mythic_chance",
+            )
+        )
+        if premium_total <= 0:
+            raise ValueError(
+                "Сума преміум-шансів має бути більше нуля — інакше преміум-спін зависне у нескінченному циклі."
+            )
+
+        pity_total = sum(
+            int(data.get(field, 0) or 0)
+            for field in ("pity_legendary_chance", "pity_mythic_chance")
+        )
+        if pity_total <= 0:
+            raise ValueError(
+                "Сума піті-шансів має бути більше нуля — інакше піті-винагорода не зможе обратися."
+            )
 
 
 class SeasonTemplateAdmin(ModelView, model=models.SeasonTemplate):
@@ -102,6 +196,38 @@ class SeasonTemplateAdmin(ModelView, model=models.SeasonTemplate):
     search_fields = ["code", "name"]
     form_excluded_columns = ["created_at", "updated_at"]
     inline_models = [models.SeasonTemplateTask]
+    form_args = {
+        "code": {
+            "validators": _required_text(
+                max_length=64, message="Код шаблону обов'язковий"
+            )
+        },
+        "name": {
+            "validators": _required_text(message="Назва шаблону обов'язкова")
+        },
+        "duration_days": {
+            "validators": _positive(
+                message="Тривалість сезону має бути принаймні 1 день"
+            )
+        },
+    }
+
+    async def on_model_change(self, data, model, is_created, request) -> None:
+        code = (data.get("code") or "").strip()
+        if not code:
+            raise ValueError("Код шаблону обов'язковий.")
+
+        with self.session_maker() as session:
+            query = session.query(models.SeasonTemplate).filter(
+                models.SeasonTemplate.code == code
+            )
+            pk = getattr(model, "id", None)
+            if not is_created and pk is not None:
+                query = query.filter(models.SeasonTemplate.id != pk)
+            if query.first() is not None:
+                raise ValueError(
+                    f"Шаблон сезону з кодом '{code}' вже існує. Оберіть інший код."
+                )
 
 
 class SeasonTemplateTaskAdmin(ModelView, model=models.SeasonTemplateTask):
@@ -109,6 +235,20 @@ class SeasonTemplateTaskAdmin(ModelView, model=models.SeasonTemplateTask):
     name_plural = "Завдання Шаблонів"
     icon = "fa-solid fa-list-check"
     column_list = ["id", "template_id", "sort_order", "title", "task_type", "target", "reward_coins", "reward_energy"]
+    form_args = {
+        "title": {
+            "validators": _required_text(message="Назва завдання обов'язкова")
+        },
+        "task_type": {"validators": _required_task_type()},
+        "target": {
+            "validators": _positive(
+                message="Ціль завдання має бути більше нуля"
+            )
+        },
+        "reward_coins": {"validators": _non_negative()},
+        "reward_energy": {"validators": _non_negative()},
+        "sort_order": {"validators": _non_negative()},
+    }
 
 
 class SeasonAdmin(ModelView, model=models.Season):
@@ -116,6 +256,25 @@ class SeasonAdmin(ModelView, model=models.Season):
     name_plural = "Сезони"
     icon = "fa-solid fa-calendar"
     column_list = ["id", "name", "start_date", "end_date", "is_active"]
+    form_args = {
+        "name": {
+            "validators": _required_text(message="Назва сезону обов'язкова")
+        },
+        "start_date": {
+            "validators": [InputRequired(message="Вкажіть дату старту сезону")]
+        },
+        "end_date": {
+            "validators": [InputRequired(message="Вкажіть дату завершення сезону")]
+        },
+    }
+
+    async def on_model_change(self, data, model, is_created, request) -> None:
+        start = data.get("start_date")
+        end = data.get("end_date")
+        if start and end and end <= start:
+            raise ValueError(
+                "Дата завершення сезону має бути пізніше дати старту."
+            )
 
 
 class SeasonTaskAdmin(ModelView, model=models.SeasonTask):
@@ -123,6 +282,19 @@ class SeasonTaskAdmin(ModelView, model=models.SeasonTask):
     name_plural = "Завдання Сезону"
     icon = "fa-solid fa-check-double"
     column_list = ["id", "season_id", "title", "reward_coins", "reward_energy"]
+    form_args = {
+        "title": {
+            "validators": _required_text(message="Назва завдання обов'язкова")
+        },
+        "task_type": {"validators": _required_task_type()},
+        "target": {
+            "validators": _positive(
+                message="Ціль завдання має бути більше нуля"
+            )
+        },
+        "reward_coins": {"validators": _non_negative()},
+        "reward_energy": {"validators": _non_negative()},
+    }
 
 
 def setup_admin(app, engine, templates_dir: str, admin_secret: str, admin_enabled: bool):
